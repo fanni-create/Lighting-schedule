@@ -1,9 +1,8 @@
-const fs = require("fs");
 const sharp = require("sharp");
+const PDFJS = require("pdfjs-dist/es5/build/pdf.js");
 
-// Disable pdfjs worker - not needed in Node.js
-const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
-pdfjsLib.GlobalWorkerOptions.workerSrc = false;
+// Disable worker entirely for Node.js
+PDFJS.GlobalWorkerOptions.workerSrc = "";
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -14,14 +13,14 @@ module.exports = async (req, res) => {
   if (!base64) return res.status(400).json({ error: "Missing PDF data" });
 
   try {
-    const pdfData = Buffer.from(base64, "base64");
-    const loadingTask = pdfjsLib.getDocument({
-      data: new Uint8Array(pdfData),
+    const pdfData = new Uint8Array(Buffer.from(base64, "base64"));
+    const doc = await PDFJS.getDocument({
+      data: pdfData,
+      verbosity: 0,
       useWorkerFetch: false,
       isEvalSupported: false,
-      useSystemFonts: true,
-    });
-    const pdfDoc = await loadingTask.promise;
+      disableFontFace: true,
+    }).promise;
 
     const MARGIN = 80;
     const BORDER_H = 3;
@@ -30,74 +29,65 @@ module.exports = async (req, res) => {
 
     let logoBuffer = null;
     if (logoBase64) {
-      const logoData = logoBase64.includes(",") ? logoBase64.split(",")[1] : logoBase64;
-      logoBuffer = Buffer.from(logoData, "base64");
+      const d = logoBase64.includes(",") ? logoBase64.split(",")[1] : logoBase64;
+      logoBuffer = Buffer.from(d, "base64");
     }
 
     const pages = [];
 
-    for (let i = 1; i <= pdfDoc.numPages; i++) {
-      const page = await pdfDoc.getPage(i);
-      const viewport = page.getViewport({ scale });
-      const W = Math.floor(viewport.width);
-      const H = Math.floor(viewport.height);
+    for (let pageNum = 1; pageNum <= doc.numPages; pageNum++) {
+      const page = await doc.getPage(pageNum);
+      const vp = page.getViewport({ scale });
+      const W = Math.floor(vp.width);
+      const H = Math.floor(vp.height);
 
-      // Render to raw RGBA buffer
-      const rawData = new Uint8ClampedArray(W * H * 4).fill(255);
-      const fakeCtx = buildFakeContext(W, H, rawData);
-      await page.render({ canvasContext: fakeCtx, viewport }).promise;
+      const rgba = new Uint8ClampedArray(W * H * 4).fill(255);
+      const ctx = buildCtx(W, H, rgba);
 
-      const pagePng = await sharp(Buffer.from(rawData.buffer), {
+      await page.render({ canvasContext: ctx, viewport: vp }).promise;
+
+      const pagePng = await sharp(Buffer.from(rgba.buffer), {
         raw: { width: W, height: H, channels: 4 }
       }).png().toBuffer();
 
-      // Build margin with logo
-      const composites = [
-        {
-          input: await sharp({
-            create: { width: W, height: BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
-          }).png().toBuffer(),
-          top: MARGIN - BORDER_H, left: 0
-        }
-      ];
+      const redLine = await sharp({
+        create: { width: W, height: BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
+      }).png().toBuffer();
+
+      const composites = [{ input: redLine, top: MARGIN - BORDER_H, left: 0 }];
 
       if (logoBuffer) {
-        composites.push({
-          input: await sharp(logoBuffer).resize(null, LOGO_H, { fit: "inside" }).toBuffer(),
-          top: Math.floor((MARGIN - BORDER_H - LOGO_H) / 2),
-          left: 24
-        });
+        const resized = await sharp(logoBuffer).resize(null, LOGO_H, { fit: "inside" }).toBuffer();
+        composites.push({ input: resized, top: Math.floor((MARGIN - BORDER_H - LOGO_H) / 2), left: 24 });
       } else {
-        composites.push({
-          input: await sharp({
-            create: { width: 6, height: MARGIN - BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
-          }).png().toBuffer(),
-          top: 0, left: 0
-        });
+        const accent = await sharp({
+          create: { width: 6, height: MARGIN - BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
+        }).png().toBuffer();
+        composites.push({ input: accent, top: 0, left: 0 });
       }
 
       const marginBar = await sharp({
         create: { width: W, height: MARGIN, channels: 3, background: { r: 255, g: 255, b: 255 } }
       }).composite(composites).png().toBuffer();
 
-      const finalPng = await sharp({
+      const final = await sharp({
         create: { width: W, height: H + MARGIN, channels: 3, background: { r: 255, g: 255, b: 255 } }
       }).composite([
         { input: marginBar, top: 0, left: 0 },
         { input: pagePng, top: MARGIN, left: 0 }
       ]).png().toBuffer();
 
-      pages.push({ page: i, dataUrl: "data:image/png;base64," + finalPng.toString("base64") });
+      pages.push({ page: pageNum, dataUrl: "data:image/png;base64," + final.toString("base64") });
     }
 
     return res.status(200).json({ pages });
   } catch (err) {
-    console.error("Error:", err.message);
+    console.error("PDF error:", err.message);
     return res.status(500).json({ error: err.message });
   }
 };
 
-function buildFakeContext(W, H, rawData) {
+function buildCtx(W, H, rgba) {
   const noop = () => {};
   const ctx = {
     canvas: { width: W, height: H },
@@ -111,13 +101,15 @@ function buildFakeContext(W, H, rawData) {
     createLinearGradient: () => ({ addColorStop: noop }),
     createRadialGradient: () => ({ addColorStop: noop }),
     createPattern: () => ({}),
-    getImageData: (x, y, w, h) => ({ data: rawData, width: w, height: h }),
+    getImageData: (x, y, w, h) => ({ data: rgba, width: w, height: h }),
     putImageData: noop,
+    createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4).fill(255), width: w, height: h }),
   };
-  const props = ['fillStyle','strokeStyle','lineWidth','lineCap','lineJoin',
-    'miterLimit','globalAlpha','globalCompositeOperation','font','textAlign',
-    'textBaseline','shadowBlur','shadowColor','shadowOffsetX','shadowOffsetY',
-    'imageSmoothingEnabled','imageSmoothingQuality'];
-  props.forEach(p => Object.defineProperty(ctx, p, { set: noop, get: () => '' }));
+  ['fillStyle','strokeStyle','lineWidth','lineCap','lineJoin','miterLimit',
+   'globalAlpha','globalCompositeOperation','font','textAlign','textBaseline',
+   'shadowBlur','shadowColor','shadowOffsetX','shadowOffsetY',
+   'imageSmoothingEnabled','imageSmoothingQuality'].forEach(p => {
+    Object.defineProperty(ctx, p, { set: noop, get: () => '', configurable: true });
+  });
   return ctx;
 }
