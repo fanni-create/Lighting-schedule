@@ -104,6 +104,10 @@ function buildCtx(W, H, rgba) {
     getImageData: (x, y, w, h) => ({ data: rgba, width: w, height: h }),
     putImageData: noop,
     createImageData: (w, h) => ({ data: new Uint8ClampedArray(w * h * 4).fill(255), width: w, height: h }),
+    getTransform: () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 }),
+    setLineDash: () => {},
+    getLineDash: () => [],
+    createConicGradient: () => ({ addColorStop: () => {} }),
   };
   ['fillStyle','strokeStyle','lineWidth','lineCap','lineJoin','miterLimit',
    'globalAlpha','globalCompositeOperation','font','textAlign','textBaseline',
