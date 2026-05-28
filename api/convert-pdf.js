@@ -1,6 +1,9 @@
 const fs = require("fs");
-const os = require("os");
-const path = require("path");
+const sharp = require("sharp");
+
+// Disable pdfjs worker - not needed in Node.js
+const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
+pdfjsLib.GlobalWorkerOptions.workerSrc = false;
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -11,11 +14,13 @@ module.exports = async (req, res) => {
   if (!base64) return res.status(400).json({ error: "Missing PDF data" });
 
   try {
-    const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
-    const sharp = require("sharp");
-
     const pdfData = Buffer.from(base64, "base64");
-    const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfData) });
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(pdfData),
+      useWorkerFetch: false,
+      isEvalSupported: false,
+      useSystemFonts: true,
+    });
     const pdfDoc = await loadingTask.promise;
 
     const MARGIN = 80;
@@ -23,13 +28,10 @@ module.exports = async (req, res) => {
     const LOGO_H = 50;
     const scale = 150 / 72;
 
-    // Parse logo if provided
     let logoBuffer = null;
-    let logoMeta = null;
     if (logoBase64) {
       const logoData = logoBase64.includes(",") ? logoBase64.split(",")[1] : logoBase64;
       logoBuffer = Buffer.from(logoData, "base64");
-      logoMeta = await sharp(logoBuffer).metadata();
     }
 
     const pages = [];
@@ -40,126 +42,82 @@ module.exports = async (req, res) => {
       const W = Math.floor(viewport.width);
       const H = Math.floor(viewport.height);
 
-      // Render PDF page to raw RGBA pixels using a minimal canvas-like object
-      const rawData = new Uint8ClampedArray(W * H * 4);
-      const canvasContext = {
-        canvas: { width: W, height: H },
-        drawImage: () => {},
-        getImageData: () => ({ data: rawData }),
-        putImageData: () => {},
-        beginPath: () => {},
-        stroke: () => {},
-        fill: () => {},
-        moveTo: () => {},
-        lineTo: () => {},
-        closePath: () => {},
-        save: () => {},
-        restore: () => {},
-        clip: () => {},
-        scale: () => {},
-        rotate: () => {},
-        translate: () => {},
-        transform: () => {},
-        setTransform: () => {},
-        resetTransform: () => {},
-        fillRect: (x, y, w, h) => {
-          // fill white
-          for (let py = y; py < y + h; py++) {
-            for (let px = x; px < x + w; px++) {
-              const idx = (py * W + px) * 4;
-              rawData[idx] = 255; rawData[idx+1] = 255;
-              rawData[idx+2] = 255; rawData[idx+3] = 255;
-            }
-          }
-        },
-        clearRect: () => {},
-        strokeRect: () => {},
-        createLinearGradient: () => ({ addColorStop: () => {} }),
-        createPattern: () => ({}),
-        set fillStyle(v) {},
-        set strokeStyle(v) {},
-        set lineWidth(v) {},
-        set lineCap(v) {},
-        set lineJoin(v) {},
-        set miterLimit(v) {},
-        set globalAlpha(v) {},
-        set globalCompositeOperation(v) {},
-        set font(v) {},
-        set textAlign(v) {},
-        set textBaseline(v) {},
-        set shadowBlur(v) {},
-        set shadowColor(v) {},
-        set shadowOffsetX(v) {},
-        set shadowOffsetY(v) {},
-        measureText: () => ({ width: 0 }),
-        fillText: () => {},
-        strokeText: () => {},
-        arc: () => {},
-        arcTo: () => {},
-        bezierCurveTo: () => {},
-        quadraticCurveTo: () => {},
-        rect: () => {},
-        isPointInPath: () => false,
-      };
+      // Render to raw RGBA buffer
+      const rawData = new Uint8ClampedArray(W * H * 4).fill(255);
+      const fakeCtx = buildFakeContext(W, H, rawData);
+      await page.render({ canvasContext: fakeCtx, viewport }).promise;
 
-      // Initialize white background
-      rawData.fill(255);
-
-      await page.render({ canvasContext, viewport }).promise;
-
-      // Build page PNG using sharp from raw RGBA
       const pagePng = await sharp(Buffer.from(rawData.buffer), {
         raw: { width: W, height: H, channels: 4 }
       }).png().toBuffer();
 
-      // Create white margin bar (W x MARGIN)
-      const marginBar = await sharp({
-        create: { width: W, height: MARGIN, channels: 3, background: { r: 255, g: 255, b: 255 } }
-      })
-      .composite([
-        // Red border line at bottom of margin
+      // Build margin with logo
+      const composites = [
         {
           input: await sharp({
             create: { width: W, height: BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
           }).png().toBuffer(),
           top: MARGIN - BORDER_H, left: 0
-        },
-        // Logo if available
-        ...(logoBuffer ? [{
-          input: await sharp(logoBuffer)
-            .resize(null, LOGO_H, { fit: "inside" })
-            .toBuffer(),
+        }
+      ];
+
+      if (logoBuffer) {
+        composites.push({
+          input: await sharp(logoBuffer).resize(null, LOGO_H, { fit: "inside" }).toBuffer(),
           top: Math.floor((MARGIN - BORDER_H - LOGO_H) / 2),
           left: 24
-        }] : [
-          // Red accent bar if no logo
-          {
-            input: await sharp({
-              create: { width: 6, height: MARGIN - BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
-            }).png().toBuffer(),
-            top: 0, left: 0
-          }
-        ])
-      ])
-      .png().toBuffer();
+        });
+      } else {
+        composites.push({
+          input: await sharp({
+            create: { width: 6, height: MARGIN - BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
+          }).png().toBuffer(),
+          top: 0, left: 0
+        });
+      }
 
-      // Stack margin on top of page
+      const marginBar = await sharp({
+        create: { width: W, height: MARGIN, channels: 3, background: { r: 255, g: 255, b: 255 } }
+      }).composite(composites).png().toBuffer();
+
       const finalPng = await sharp({
         create: { width: W, height: H + MARGIN, channels: 3, background: { r: 255, g: 255, b: 255 } }
-      })
-      .composite([
+      }).composite([
         { input: marginBar, top: 0, left: 0 },
         { input: pagePng, top: MARGIN, left: 0 }
-      ])
-      .png().toBuffer();
+      ]).png().toBuffer();
 
-      const dataUrl = "data:image/png;base64," + finalPng.toString("base64");
-      pages.push({ page: i, dataUrl });
+      pages.push({ page: i, dataUrl: "data:image/png;base64," + finalPng.toString("base64") });
     }
 
     return res.status(200).json({ pages });
   } catch (err) {
-    console.error("Conversion error:", err.message, err.stack);
+    console.error("Error:", err.message);
     return res.status(500).json({ error: err.message });
   }
 };
+
+function buildFakeContext(W, H, rawData) {
+  const noop = () => {};
+  const ctx = {
+    canvas: { width: W, height: H },
+    drawImage: noop, beginPath: noop, stroke: noop, fill: noop,
+    moveTo: noop, lineTo: noop, closePath: noop, save: noop, restore: noop,
+    clip: noop, scale: noop, rotate: noop, translate: noop, transform: noop,
+    setTransform: noop, resetTransform: noop, fillRect: noop, clearRect: noop,
+    strokeRect: noop, arc: noop, arcTo: noop, bezierCurveTo: noop,
+    quadraticCurveTo: noop, rect: noop, isPointInPath: () => false,
+    measureText: () => ({ width: 0 }), fillText: noop, strokeText: noop,
+    createLinearGradient: () => ({ addColorStop: noop }),
+    createRadialGradient: () => ({ addColorStop: noop }),
+    createPattern: () => ({}),
+    getImageData: (x, y, w, h) => ({ data: rawData, width: w, height: h }),
+    putImageData: noop,
+  };
+  const props = ['fillStyle','strokeStyle','lineWidth','lineCap','lineJoin',
+    'miterLimit','globalAlpha','globalCompositeOperation','font','textAlign',
+    'textBaseline','shadowBlur','shadowColor','shadowOffsetX','shadowOffsetY',
+    'imageSmoothingEnabled','imageSmoothingQuality'];
+  props.forEach(p => Object.defineProperty(ctx, p, { set: noop, get: () => '' }));
+  return ctx;
+}
