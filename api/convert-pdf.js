@@ -2,8 +2,8 @@ const sharp = require("sharp");
 const PDFJS = require("pdfjs-dist/build/pdf.js");
 
 // Disable worker entirely for Node.js
-PDFJS.GlobalWorkerOptions.workerSrc = "";
-
+const path = require("path");
+PDFJS.GlobalWorkerOptions.workerSrc = path.join(__dirname, "../node_modules/pdfjs-dist/build/pdf.worker.js");
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).send("Method Not Allowed");
