@@ -11,10 +11,8 @@ module.exports = async (req, res) => {
   try {
     const unpdf = require("unpdf");
 
-    // Use legacy build which has the worker bundled correctly
-    await unpdf.definePDFJSModule(() => 
-      import("pdfjs-dist/legacy/build/pdf.mjs")
-    );
+    // Use pdfjs-serverless which has worker inlined - no separate worker file needed
+    await unpdf.definePDFJSModule(() => import("pdfjs-serverless"));
 
     const { renderPageAsImage, getDocumentProxy } = unpdf;
 
