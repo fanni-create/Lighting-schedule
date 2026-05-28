@@ -1,5 +1,4 @@
 const sharp = require("sharp");
-const { createCanvas } = require("@napi-rs/canvas");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -10,7 +9,10 @@ module.exports = async (req, res) => {
   if (!base64) return res.status(400).json({ error: "Missing PDF data" });
 
   try {
-    const { renderPageAsImage, getDocumentProxy } = require("unpdf");
+    const { definePDFJSModule, renderPageAsImage, getDocumentProxy } = require("unpdf");
+
+    // Must configure pdfjs-dist before using renderPageAsImage
+    await definePDFJSModule(() => import("pdfjs-dist"));
 
     const pdfData = new Uint8Array(Buffer.from(base64, "base64"));
     const doc = await getDocumentProxy(pdfData);
@@ -28,17 +30,12 @@ module.exports = async (req, res) => {
     const pages = [];
 
     for (let i = 1; i <= doc.numPages; i++) {
-      // Provide canvas factory matching what unpdf expects
       const imgBuffer = await renderPageAsImage(doc, i, {
         scale: 150 / 72,
-        canvas: () => Promise.resolve({
-          createCanvas,
-          // unpdf may also need Image
-          Image: require("@napi-rs/canvas").Image,
-        }),
+        canvasImport: () => import("@napi-rs/canvas"),
       });
-      const pagePng = Buffer.from(imgBuffer);
 
+      const pagePng = Buffer.from(imgBuffer);
       const meta = await sharp(pagePng).metadata();
       const W = meta.width;
 
