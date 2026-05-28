@@ -1,5 +1,19 @@
 const sharp = require("sharp");
 
+// Alias @napi-rs/canvas as 'canvas' so pdfjs-dist finds it
+const napiCanvas = require("@napi-rs/canvas");
+require.cache[require.resolve("canvas")] = {
+  id: "canvas",
+  filename: "canvas",
+  loaded: true,
+  exports: napiCanvas,
+};
+
+const PDFJS = require("pdfjs-dist/legacy/build/pdf.js");
+PDFJS.GlobalWorkerOptions.workerSrc = require.resolve(
+  "pdfjs-dist/legacy/build/pdf.worker.js"
+);
+
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
     return res.status(405).send("Method Not Allowed");
@@ -9,12 +23,7 @@ module.exports = async (req, res) => {
   if (!base64) return res.status(400).json({ error: "Missing PDF data" });
 
   try {
-    // Use @napi-rs/canvas which provides native canvas bindings that work on Vercel
-    const { createCanvas, Image } = require("@napi-rs/canvas");
-    const PDFJS = require("pdfjs-dist/legacy/build/pdf.js");
-
-    // Point worker to the bundled worker file
-    PDFJS.GlobalWorkerOptions.workerSrc = require.resolve("pdfjs-dist/legacy/build/pdf.worker.js");
+    const { createCanvas } = napiCanvas;
 
     const pdfData = new Uint8Array(Buffer.from(base64, "base64"));
     const doc = await PDFJS.getDocument({
@@ -54,14 +63,16 @@ module.exports = async (req, res) => {
             const c = createCanvas(w, h);
             return { canvas: c, context: c.getContext("2d") };
           },
-          reset: (cc, w, h) => { cc.canvas.width = w; cc.canvas.height = h; },
+          reset: (cc, w, h) => {
+            cc.canvas.width = w;
+            cc.canvas.height = h;
+          },
           destroy: () => {},
         },
       }).promise;
 
       const pagePng = canvas.toBuffer("image/png");
 
-      // Build margin with logo
       const redLine = await sharp({
         create: { width: W, height: BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
       }).png().toBuffer();
@@ -69,8 +80,14 @@ module.exports = async (req, res) => {
       const composites = [{ input: redLine, top: MARGIN - BORDER_H, left: 0 }];
 
       if (logoBuffer) {
-        const resized = await sharp(logoBuffer).resize(null, LOGO_H, { fit: "inside" }).toBuffer();
-        composites.push({ input: resized, top: Math.floor((MARGIN - BORDER_H - LOGO_H) / 2), left: 24 });
+        const resized = await sharp(logoBuffer)
+          .resize(null, LOGO_H, { fit: "inside" })
+          .toBuffer();
+        composites.push({
+          input: resized,
+          top: Math.floor((MARGIN - BORDER_H - LOGO_H) / 2),
+          left: 24,
+        });
       } else {
         const accent = await sharp({
           create: { width: 6, height: MARGIN - BORDER_H, channels: 3, background: { r: 204, g: 0, b: 0 } }
@@ -86,10 +103,13 @@ module.exports = async (req, res) => {
         create: { width: W, height: H + MARGIN, channels: 3, background: { r: 255, g: 255, b: 255 } }
       }).composite([
         { input: marginBar, top: 0, left: 0 },
-        { input: pagePng, top: MARGIN, left: 0 }
+        { input: pagePng, top: MARGIN, left: 0 },
       ]).png().toBuffer();
 
-      pages.push({ page: i, dataUrl: "data:image/png;base64," + final.toString("base64") });
+      pages.push({
+        page: i,
+        dataUrl: "data:image/png;base64," + final.toString("base64"),
+      });
     }
 
     return res.status(200).json({ pages });
