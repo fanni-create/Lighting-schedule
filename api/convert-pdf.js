@@ -1,4 +1,5 @@
 const sharp = require("sharp");
+const { createCanvas } = require("@napi-rs/canvas");
 
 module.exports = async (req, res) => {
   if (req.method !== "POST") {
@@ -27,10 +28,14 @@ module.exports = async (req, res) => {
     const pages = [];
 
     for (let i = 1; i <= doc.numPages; i++) {
-      // Pass @napi-rs/canvas as the canvas implementation
+      // Provide canvas factory matching what unpdf expects
       const imgBuffer = await renderPageAsImage(doc, i, {
         scale: 150 / 72,
-        canvas: () => import("@napi-rs/canvas"),
+        canvas: () => Promise.resolve({
+          createCanvas,
+          // unpdf may also need Image
+          Image: require("@napi-rs/canvas").Image,
+        }),
       });
       const pagePng = Buffer.from(imgBuffer);
 
