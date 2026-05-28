@@ -9,10 +9,15 @@ module.exports = async (req, res) => {
   if (!base64) return res.status(400).json({ error: "Missing PDF data" });
 
   try {
-    const { definePDFJSModule, renderPageAsImage, getDocumentProxy } = require("unpdf");
+    const unpdf = require("unpdf");
 
-    // Must configure pdfjs-dist before using renderPageAsImage
-    await definePDFJSModule(() => import("pdfjs-dist"));
+    // definePDFJSModule exists in v1.x, configureUnPDF in older versions
+    const configureFn = unpdf.definePDFJSModule || unpdf.configureUnPDF;
+    if (configureFn) {
+      await configureFn(() => import("pdfjs-dist"));
+    }
+
+    const { renderPageAsImage, getDocumentProxy } = unpdf;
 
     const pdfData = new Uint8Array(Buffer.from(base64, "base64"));
     const doc = await getDocumentProxy(pdfData);
@@ -30,10 +35,19 @@ module.exports = async (req, res) => {
     const pages = [];
 
     for (let i = 1; i <= doc.numPages; i++) {
-      const imgBuffer = await renderPageAsImage(doc, i, {
-        scale: 150 / 72,
-        canvasImport: () => import("@napi-rs/canvas"),
-      });
+      // Try canvasImport (v1.x) then canvas (older) 
+      let imgBuffer;
+      try {
+        imgBuffer = await renderPageAsImage(doc, i, {
+          scale: 150 / 72,
+          canvasImport: () => import("@napi-rs/canvas"),
+        });
+      } catch (e) {
+        imgBuffer = await renderPageAsImage(doc, i, {
+          scale: 150 / 72,
+          canvas: () => import("@napi-rs/canvas"),
+        });
+      }
 
       const pagePng = Buffer.from(imgBuffer);
       const meta = await sharp(pagePng).metadata();
