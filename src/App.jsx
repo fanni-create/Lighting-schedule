@@ -93,15 +93,15 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
       const dataUrl = ev.target.result;
       const base64 = dataUrl.split(",")[1];
 
-      // Show filename immediately
       const interim = { ...local, cutsheet: dataUrl, cutsheetName: f.name, cutsheetPageImages: null };
       setLocal(interim); onUpdate(interim);
 
       try {
+        const brandLogo = window.__brandLogo || null;
         const res = await fetch("/api/convert-pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64, filename: f.name }),
+          body: JSON.stringify({ base64, filename: f.name, logoBase64: brandLogo }),
         });
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         const { pages } = await res.json();
