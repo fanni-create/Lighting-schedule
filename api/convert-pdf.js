@@ -11,11 +11,10 @@ module.exports = async (req, res) => {
   try {
     const unpdf = require("unpdf");
 
-    // definePDFJSModule exists in v1.x, configureUnPDF in older versions
-    const configureFn = unpdf.definePDFJSModule || unpdf.configureUnPDF;
-    if (configureFn) {
-      await configureFn(() => import("pdfjs-dist"));
-    }
+    // Use legacy build which has the worker bundled correctly
+    await unpdf.definePDFJSModule(() => 
+      import("pdfjs-dist/legacy/build/pdf.mjs")
+    );
 
     const { renderPageAsImage, getDocumentProxy } = unpdf;
 
@@ -35,19 +34,10 @@ module.exports = async (req, res) => {
     const pages = [];
 
     for (let i = 1; i <= doc.numPages; i++) {
-      // Try canvasImport (v1.x) then canvas (older) 
-      let imgBuffer;
-      try {
-        imgBuffer = await renderPageAsImage(doc, i, {
-          scale: 150 / 72,
-          canvasImport: () => import("@napi-rs/canvas"),
-        });
-      } catch (e) {
-        imgBuffer = await renderPageAsImage(doc, i, {
-          scale: 150 / 72,
-          canvas: () => import("@napi-rs/canvas"),
-        });
-      }
+      const imgBuffer = await renderPageAsImage(doc, i, {
+        scale: 150 / 72,
+        canvasImport: () => import("@napi-rs/canvas"),
+      });
 
       const pagePng = Buffer.from(imgBuffer);
       const meta = await sharp(pagePng).metadata();
