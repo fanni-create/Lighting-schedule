@@ -7,7 +7,7 @@
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "unpdf": "^1.4.0",
-    "pdfjs-dist": "^4.3.136",
+    "pdfjs-serverless": "^0.6.0",
     "@napi-rs/canvas": "^0.1.51",
     "sharp": "^0.33.0"
   },
