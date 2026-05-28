@@ -1,5 +1,5 @@
 const sharp = require("sharp");
-const PDFJS = require("pdfjs-dist/es5/build/pdf.js");
+const PDFJS = require("pdfjs-dist/build/pdf.js");
 
 // Disable worker entirely for Node.js
 PDFJS.GlobalWorkerOptions.workerSrc = "";
