@@ -11,8 +11,11 @@ module.exports = async (req, res) => {
   try {
     const unpdf = require("unpdf");
 
-    // Use pdfjs-serverless which has worker inlined - no separate worker file needed
-    await unpdf.definePDFJSModule(() => import("pdfjs-serverless"));
+    // pdfjs-serverless has worker inlined, use resolvePDFJS to get exports
+    await unpdf.definePDFJSModule(async () => {
+      const { resolvePDFJS } = require("pdfjs-serverless");
+      return resolvePDFJS();
+    });
 
     const { renderPageAsImage, getDocumentProxy } = unpdf;
 
