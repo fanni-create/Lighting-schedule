@@ -27,8 +27,11 @@ module.exports = async (req, res) => {
     const pages = [];
 
     for (let i = 1; i <= doc.numPages; i++) {
-      // renderPageAsImage returns an ArrayBuffer of the PNG
-      const imgBuffer = await renderPageAsImage(doc, i, { scale: 150 / 72 });
+      // Pass @napi-rs/canvas as the canvas implementation
+      const imgBuffer = await renderPageAsImage(doc, i, {
+        scale: 150 / 72,
+        canvas: () => import("@napi-rs/canvas"),
+      });
       const pagePng = Buffer.from(imgBuffer);
 
       const meta = await sharp(pagePng).metadata();
