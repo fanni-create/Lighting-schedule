@@ -2,7 +2,8 @@
   "buildCommand": "npm run vercel-build",
   "outputDirectory": "build",
   "functions": {
-    "api/convert-pdf.js": {
+    "api/convert-pdf.py": {
+      "runtime": "vercel-python@4.x",
       "maxDuration": 60,
       "memory": 1024
     }
