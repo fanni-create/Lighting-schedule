@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 // Load Montserrat font
 const fontLink = document.createElement("link");
@@ -98,10 +98,12 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
 
       try {
         const brandLogo = window.__brandLogo || null;
+        // Extract highlight terms from model number field
+        const modelLines = (local.modelNumber || "").split("\n").map(l => l.trim()).filter(l => l.length >= 3);
         const res = await fetch("/api/convert-pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ base64, filename: f.name, logoBase64: brandLogo }),
+          body: JSON.stringify({ base64, filename: f.name, logoBase64: brandLogo, highlightTerms: modelLines }),
         });
         if (!res.ok) throw new Error(`Server error ${res.status}`);
         const { pages } = await res.json();
@@ -482,13 +484,13 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
     ${pagesHtml}`;
   }).join("");
 
-  const pageFooter = `<div class="page-footer"><span>${brand.name || "Fixture Schedule Book"}</span><span>${today}</span></div>`;
+  const pageFooter = `<div class="page-footer"><span>${brand.name || "Lighting Cutsheet Package"}</span><span>${today}</span></div>`;
 
   const html = `<!DOCTYPE html>
 <html>
 <head>
 <meta charset="utf-8"/>
-<title>${brand.name ? brand.name + " — " : ""}Fixture Schedule Book</title>
+<title>${brand.name ? brand.name + " — " : ""}Lighting Cutsheet Package</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap');
   *{box-sizing:border-box;margin:0;padding:0;}
@@ -559,7 +561,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
       <div>
         ${companyHtml}
         <div style="font-size:22px;font-weight:800;color:#111;letter-spacing:-0.02em;line-height:1.1;">${projectName}</div>
-        <div class="header-title">Fixture Schedule Book</div>
+        <div class="header-title">Lighting Cutsheet Package</div>
         <div style="font-size:11px;color:#999;margin-top:3px;">Generated ${today}</div>
       </div>
     </div>
@@ -570,7 +572,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
 
   ${toc}
 
-  <div class="section-label">Fixture Specification Sheet</div>
+  <div class="section-label">Lighting Cutsheet Package</div>
   ${specSections}
   ${pageFooter}
 
@@ -588,7 +590,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   const dateStr = new Date().toISOString().slice(0, 10);
   return [{
     blob: new Blob([html], { type: "text/html;charset=utf-8" }),
-    name: "fixture-schedule-" + dateStr + ".html",
+    name: "lighting-cutsheet-package-" + dateStr + ".html",
   }];
 }
 
@@ -642,18 +644,57 @@ function ProjectTabs({ projects, activeId, onSelect, onAdd, onRename, onDelete }
   );
 }
 
+// ─── localStorage helpers ─────────────────────────────────────────────────────
+const STORAGE_KEY = "fixture-schedule-v1";
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    // Restore projIdCounter so new projects don't clash
+    if (data.projects && data.projects.length > 0) {
+      projIdCounter = Math.max(...data.projects.map(p => p.id)) + 1;
+    }
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveToStorage(data) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.warn("localStorage save failed:", e);
+  }
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [projects, setProjects] = useState([newProject("Project 1")]);
-  const [activeProjectId, setActiveProjectId] = useState(projects[0].id);
+  const stored = loadFromStorage();
+
+  const [projects, setProjects] = useState(() => {
+    if (stored?.projects?.length) return stored.projects;
+    return [newProject("Project 1")];
+  });
+  const [activeProjectId, setActiveProjectId] = useState(() => {
+    if (stored?.activeProjectId) return stored.activeProjectId;
+    return projects[0].id;
+  });
   const [search, setSearch] = useState("");
   const [saved, setSaved] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [manufacturers, setManufacturers] = useState([...DEFAULT_MANUFACTURERS]);
-  const [reps, setReps] = useState([...DEFAULT_REPS]);
-  const [brand, setBrand] = useState({ logo: null, logoName: "", name: "" });
+  const [manufacturers, setManufacturers] = useState(() => stored?.manufacturers || [...DEFAULT_MANUFACTURERS]);
+  const [reps, setReps] = useState(() => stored?.reps || [...DEFAULT_REPS]);
+  const [brand, setBrand] = useState(() => stored?.brand || { logo: null, logoName: "", name: "" });
   const [exporting, setExporting] = useState(false);
   const dlRef = useRef();
+
+  // Auto-save whenever key state changes
+  useEffect(() => {
+    saveToStorage({ projects, activeProjectId, manufacturers, reps, brand });
+  }, [projects, activeProjectId, manufacturers, reps, brand]);
 
   // Active project helpers
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
@@ -731,14 +772,14 @@ export default function App() {
               <span style={{ fontFamily: "monospace", fontSize: "10px", color: "#cc0000", letterSpacing: "0.12em" }}>FIXTURE SCHEDULE</span>
             </div>
             <h1 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#fff", letterSpacing: "-0.02em" }}>
-              {brand.name ? `${brand.name}` : "Fixture Specification Sheet"} {activeProject.name ? `· ${activeProject.name}` : ""}
+              {brand.name ? `${brand.name}` : "Lighting Cutsheet Package"} {activeProject.name ? `· ${activeProject.name}` : ""}
             </h1>
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
           <button onClick={() => setShowSettings(true)} style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "7px", padding: "7px 11px", color: "#888", fontSize: "13px", cursor: "pointer" }} title="Settings">⚙︎</button>
-          <button onClick={() => { setSaved(true); setTimeout(() => setSaved(false), 2000); }}
+          <button onClick={() => { saveToStorage({ projects, activeProjectId, manufacturers, reps, brand }); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
             style={{ background: saved ? "#1a0000" : "#1a1a1a", color: saved ? "#cc0000" : "#888", border: `1px solid ${saved ? "#4a0000" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", transition: "all 0.2s" }}>
             {saved ? "✓ Saved" : "Save"}
           </button>
@@ -786,7 +827,7 @@ export default function App() {
             }}
             disabled={fixtures.length === 0 || exporting}
             style={{ background: fixtures.length > 0 && !exporting ? "#1a0000" : "#141414", color: fixtures.length > 0 && !exporting ? "#cc0000" : "#444", border: `1px solid ${fixtures.length > 0 && !exporting ? "#4a0000" : "#222"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: fixtures.length > 0 && !exporting ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: exporting ? 0.6 : 1 }}>
-            {exporting ? "⏳ Exporting…" : "↓ Export Schedule Book"}
+            {exporting ? "⏳ Exporting…" : "↓ Export Cutsheet Package"}
           </button>
           <a ref={dlRef} style={{ display: "none" }} href="/" aria-hidden="true">download</a>
         </div>
