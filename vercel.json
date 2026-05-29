@@ -3,7 +3,6 @@
   "outputDirectory": "build",
   "functions": {
     "api/convert-pdf.py": {
-      "runtime": "vercel-python@3.0.0",
       "maxDuration": 60,
       "memory": 1024
     }
