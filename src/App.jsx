@@ -29,6 +29,7 @@ const emptyFixture = () => ({
   modelNumber: "", wattage: "", colorTemp: "", cri: "", voltage: "",
   lumens: "", distributorNet: "", qty: 1, notes: "", image: null,
   cutsheet: null, cutsheetName: "", cutsheetPageImages: null,
+  isLinear: false, linearFt: "",
 });
 
 // ─── Managed Select ───────────────────────────────────────────────────────────
@@ -139,6 +140,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
           <div style={{ fontSize: "11px", color: "#555", marginTop: "2px", display: "flex", gap: "8px", alignItems: "center" }}>
             {local.type && <span>{local.type}</span>}
             {local.modelNumber && <span style={{ color: "#444" }}>{local.modelNumber.split("\n")[0]}{local.modelNumber.includes("\n") ? " …" : ""}</span>}
+            {local.isLinear && local.linearFt && <span style={{ color: "#7ab3f5", fontSize: "10px" }}>📏 {local.linearFt} LF</span>}
             {local.cutsheet && <span style={{ color: "#7ab3f5", fontSize: "10px" }}>📄 cutsheet</span>}
           </div>
         </div>
@@ -162,7 +164,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
                   {local.image ? <img src={local.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "22px", opacity: 0.3 }}>📷</span>}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                  <button onClick={() => imageRef.current?.click()} style={{ background: "#1e1e1e", border: "1px solid #2e2e2e", borderRadius: "7px", padding: "6px 12px", color: "#ccc", fontSize: "12px", cursor: "pointer" }}>{local.image ? "Change" : "Upload Image"}</button>
+                  <button onClick={() => imageRef.current?.click()} style={{ background: "#555", border: "1px solid #666", borderRadius: "7px", padding: "6px 12px", color: "#fff", fontSize: "12px", cursor: "pointer" }}>{local.image ? "Change" : "Upload Image"}</button>
                   {local.image && <button onClick={() => set("image", null)} style={{ background: "none", border: "none", color: "#555", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove</button>}
                   <span style={{ fontSize: "10px", color: "#3a3a3a" }}>PNG, JPG, WebP</span>
                 </div>
@@ -184,10 +186,10 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px", minWidth: 0 }}>
                   <button onClick={() => cutsheetRef.current?.click()} disabled={converting}
-                    style={{ background: local.cutsheetPageImages ? "#0a2a0a" : local.cutsheet ? "#0d1f35" : "#1e1e1e",
-                      border: `1px solid ${local.cutsheetPageImages ? "#2e6e2e" : local.cutsheet ? "#2e5a8e" : "#2e2e2e"}`,
+                    style={{ background: local.cutsheetPageImages ? "#2e6e2e" : local.cutsheet ? "#2e5a8e" : "#555",
+                      border: `1px solid ${local.cutsheetPageImages ? "#3a8a3a" : local.cutsheet ? "#4a7aaa" : "#666"}`,
                       borderRadius: "7px", padding: "6px 12px",
-                      color: local.cutsheetPageImages ? "#6fba6f" : local.cutsheet ? "#7ab3f5" : "#ccc",
+                      color: "#fff",
                       fontSize: "12px", cursor: converting ? "not-allowed" : "pointer", opacity: converting ? 0.5 : 1 }}>
                     {local.cutsheetPageImages ? "Replace PDF" : "Upload PDF"}
                   </button>
@@ -237,6 +239,27 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
             <Field label="Voltage" value={local.voltage} onChange={v => set("voltage", v)} placeholder="e.g. 120-277V" />
             <Field label="Distributor Net ($)" value={local.distributorNet} onChange={v => set("distributorNet", v)} placeholder="e.g. 84.50" type="number" />
             <Field label="Qty" value={local.qty} onChange={v => set("qty", v)} placeholder="1" type="number" />
+            <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "16px", padding: "10px 12px", background: "#fff", borderRadius: "7px", border: "1px solid #ddd" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none" }}>
+                <div onClick={() => set("isLinear", !local.isLinear)} style={{ width: "36px", height: "20px", borderRadius: "10px", background: local.isLinear ? "#cc0000" : "#ccc", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
+                  <div style={{ position: "absolute", top: "3px", left: local.isLinear ? "19px" : "3px", width: "14px", height: "14px", borderRadius: "50%", background: "#fff", transition: "left 0.2s" }} />
+                </div>
+                <span style={{ fontSize: "12px", fontWeight: "700", color: "#333" }}>Linear Fixture</span>
+              </label>
+              {local.isLinear && (
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", flex: 1 }}>
+                  <input type="number" value={local.linearFt} onChange={e => set("linearFt", e.target.value)}
+                    placeholder="e.g. 24"
+                    style={{ ...inputStyle, width: "100px", margin: 0 }} />
+                  <span style={{ fontSize: "12px", fontWeight: "700", color: "#555" }}>LF</span>
+                  {local.linearFt && local.qty && (
+                    <span style={{ fontSize: "11px", color: "#888" }}>
+                      ({(parseFloat(local.linearFt) * parseInt(local.qty || 1)).toFixed(1)} LF total)
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>Notes</label>
               <textarea value={local.notes} onChange={e => set("notes", e.target.value)} placeholder="Dimming, mounting, special requirements…"
@@ -392,6 +415,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
         : `<div style="width:48px;height:48px;border-radius:6px;border:1px dashed #ddd;"></div>`;
       const tags = [
         f.type && `<span class="tag">${f.type}</span>`,
+        f.isLinear && f.linearFt && `<span class="tag" style="background:#e8f0fe;border-color:#4a90e2;color:#1a5cb8;">📏 ${f.linearFt} LF · ${(parseFloat(f.linearFt) * parseInt(f.qty||1)).toFixed(1)} LF total</span>`,
         f.wattage && `<span class="tag">${f.wattage}W</span>`,
         f.colorTemp && `<span class="tag ct" style="background:${kelvinToHex(f.colorTemp)}22;border-color:${kelvinToHex(f.colorTemp)}66;">${f.colorTemp}</span>`,
         f.cri && `<span class="tag">${f.cri}</span>`,
