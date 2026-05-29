@@ -72,7 +72,7 @@ function FixtureThumbnail({ image, onClick }) {
 }
 
 // ─── Fixture Row ──────────────────────────────────────────────────────────────
-function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep }) {
+function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType }) {
   const [local, setLocal] = useState(fixture);
   const imageRef = useRef(); const cutsheetRef = useRef();
 
@@ -126,14 +126,14 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
   const ctColor = local.colorTemp ? kelvinToHex(local.colorTemp) : "#555";
 
   return (
-    <div style={{ background: isEditing ? "#161616" : "#111", border: `1px solid ${isEditing ? "#333" : "#1c1c1c"}`, borderRadius: "10px", marginBottom: "8px", overflow: "hidden", transition: "all 0.2s" }}>
+    <div style={{ background: isEditing ? "#f5f5f5" : "#2a2a2a", border: `1px solid ${isEditing ? "#ddd" : "#3a3a3a"}`, borderRadius: "10px", marginBottom: "8px", overflow: "hidden", transition: "all 0.2s" }}>
       <input ref={imageRef} type="file" accept="image/*" onChange={handleImg} style={{ display: "none" }} />
       <input ref={cutsheetRef} type="file" accept="application/pdf" onChange={handlePDF} style={{ display: "none" }} />
 
       <div style={{ display: "grid", gridTemplateColumns: "48px 2fr 1fr 90px 80px 90px 100px 44px", alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
         <FixtureThumbnail image={local.image} onClick={() => imageRef.current?.click()} />
         <div style={{ paddingLeft: "12px" }}>
-          <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#444" }}>
+          <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#444", display: "flex", alignItems: "center", gap: "8px" }}>
             {local.name || <em style={{ color: "#444", fontWeight: 400 }}>Untitled fixture</em>}
           </div>
           <div style={{ fontSize: "11px", color: "#555", marginTop: "2px", display: "flex", gap: "8px", alignItems: "center" }}>
@@ -152,13 +152,13 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
       </div>
 
       {isEditing && (
-        <div style={{ borderTop: "1px solid #222", padding: "16px" }}>
+        <div style={{ borderTop: "1px solid #ddd", padding: "16px", background: "#f5f5f5" }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
             {/* Image */}
             <div>
               <label style={labelStyle}>Fixture Image</label>
               <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                <div style={{ width: "72px", height: "72px", borderRadius: "9px", overflow: "hidden", flexShrink: 0, background: "#1a1a1a", border: "1px dashed #2e2e2e", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <div style={{ width: "72px", height: "72px", borderRadius: "9px", overflow: "hidden", flexShrink: 0, background: "#fff", border: "1px dashed #ccc", display: "flex", alignItems: "center", justifyContent: "center" }}>
                   {local.image ? <img src={local.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <span style={{ fontSize: "22px", opacity: 0.3 }}>📷</span>}
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
@@ -219,8 +219,8 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
-            <Field label="Fixture Name" value={local.name} onChange={v => set("name", v)} placeholder="e.g. Office Troffer A" />
-            <SimpleSelect label="Fixture Type" value={local.type} onChange={v => set("type", v)} options={FIXTURE_TYPES} />
+            <Field label="Fixture Name" value={local.name} onChange={v => set("name", v)} placeholder="e.g. L-2 Downlight or F1 Panel" />
+            <ManagedSelect label="Fixture Type" value={local.type} onChange={v => set("type", v)} options={fixtureTypesProp || FIXTURE_TYPES} onAddOption={onAddFixtureType || (() => {})} />
             <div style={{ gridColumn: "1 / -1" }}>
               <label style={labelStyle}>Model Number(s)</label>
               <textarea value={local.modelNumber} onChange={e => set("modelNumber", e.target.value)}
@@ -257,9 +257,10 @@ function SimpleSelect({ label, value, onChange, options }) {
 }
 
 // ─── Settings Modal ───────────────────────────────────────────────────────────
-function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRemoveManufacturer, onRemoveRep, brand, onBrandChange, onClose }) {
+function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRemoveManufacturer, onRemoveRep, brand, onBrandChange, onClose, fixtureTypesList, onAddFixtureTypeSettings, onRemoveFixtureTypeSettings }) {
   const [newMfr, setNewMfr] = useState("");
   const [newRep, setNewRep] = useState("");
+  const [newFtype, setNewFtype] = useState("");
   const [tab, setTab] = useState("brand");
   const logoRef = useRef();
 
@@ -297,7 +298,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
             {/* Logo upload */}
             <label style={{ ...labelStyle, color: "#cc0000", marginBottom: "10px" }}>COMPANY LOGO</label>
             <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "20px" }}>
-              <div style={{ width: "120px", height: "60px", borderRadius: "8px", background: "#1a1a1a", border: "1px dashed #2e2e2e", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+              <div style={{ width: "120px", height: "60px", borderRadius: "8px", background: "#fff", border: "1px dashed #ccc", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
                 {brand.logo
                   ? <img src={brand.logo} alt="logo" style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }} />
                   : <span style={{ fontSize: "11px", color: "#444" }}>No logo</span>}
@@ -356,7 +357,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
                   <button onClick={() => { if (val.trim()) { onAdd(val.trim()); setVal(""); } }} style={miniBtn("#cc0000", "#fff")}>Add</button>
                 </div>
                 {list.map(item => (
-                  <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#1a1a1a", borderRadius: "6px", marginBottom: "4px" }}>
+                  <div key={item} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "#3a3a3a", borderRadius: "6px", marginBottom: "4px" }}>
                     <span style={{ fontSize: "12px", color: "#ccc" }}>{item}</span>
                     <button onClick={() => onRemove(item)} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "14px", padding: 0 }}
                       onMouseEnter={e => e.target.style.color = "#c0504d"} onMouseLeave={e => e.target.style.color = "#444"}>×</button>
@@ -379,7 +380,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   const today = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
   const cutsheetCount = fixtures.filter(f => f.cutsheet).length;
 
-  const logoHtml = brand.logo ? `<img src="${brand.logo}" alt="logo" style="height:44px;max-width:140px;object-fit:contain;display:block;" />` : "";
+  const logoHtml = brand.logo ? `<img src="${brand.logo}" alt="logo" style="height:48px;max-width:160px;object-fit:contain;display:block;" />` : "";
   const companyHtml = brand.name ? `<div style="font-size:15px;font-weight:800;color:#111;letter-spacing:-0.01em;line-height:1.1;">${brand.name}</div>` : "";
 
   const specSections = grouped.map(([mfr, mfrFixtures]) => {
@@ -451,6 +452,30 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
     const modelLines = f.modelNumber ? f.modelNumber.split("\n").map(l => l.trim()).filter(Boolean) : [];
     const num = String(i+1).padStart(2,"0");
 
+    // Build divider page
+    const fixtureImgHtml = f.image
+      ? `<img src="${f.image}" style="max-width:320px;max-height:320px;object-fit:contain;display:block;margin:0 auto;" />`
+      : `<div style="width:200px;height:200px;border:2px dashed #ddd;border-radius:8px;margin:0 auto;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:14px;">No Image</div>`;
+
+    const dividerPage = `<div class="page-break"></div>
+    <div class="divider-page">
+      <div class="divider-header">
+        ${logoHtml ? `<img src="${f.image ? '' : ''}" style="display:none"/>` : ""}
+        <div class="divider-logo">${logoHtml || ""}</div>
+        <div class="divider-lnum">${f.name || "Fixture " + num}</div>
+      </div>
+      <div class="divider-body">
+        <div class="divider-img">${fixtureImgHtml}</div>
+
+        ${modelLines.length ? `<div class="divider-model">${modelLines.join("<br/>")}</div>` : ""}
+        ${f.manufacturer ? `<div class="divider-mfr">${f.manufacturer}</div>` : ""}
+      </div>
+      <div class="divider-footer">
+        <span>${brand.name || ""}</span>
+        <span>${today}</span>
+      </div>
+    </div>`;
+
     // Use pre-converted page images if available (always print-safe)
     // Otherwise embed raw PDF (works in Chrome/Edge but may not print)
     let pagesHtml = "";
@@ -469,7 +494,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
       </div>`;
     }
 
-    return `<div class="page-break"></div>
+    return dividerPage + `<div class="page-break"></div>
     <div class="cs-divider">
       <div class="cs-header-bar">
         ${logoHtml ? `<div class="cs-logo">${logoHtml}</div>` : ""}
@@ -530,7 +555,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   /* ── Cutsheet divider ── */
   .cs-divider{margin-bottom:0;}
   .cs-header-bar{display:flex;align-items:center;gap:16px;padding:12px 16px;background:#111;border-radius:6px 6px 0 0;}
-  .cs-logo img{height:32px;max-width:90px;object-fit:contain;filter:brightness(0) invert(1);}
+  .cs-logo img{height:32px;max-width:90px;object-fit:contain;}
   .cs-meta{display:flex;align-items:center;gap:10px;flex:1;}
   .cs-num-lg{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#fff;background:#cc0000;border-radius:4px;padding:2px 8px;flex-shrink:0;}
   .cs-name-lg{font-weight:700;font-size:14px;color:#fff;}
@@ -538,6 +563,17 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   .cs-mfr-lg{font-size:11px;color:#888;margin-left:auto;}
   .cutsheet-embed{background:#f4f4f4;}
   .cs-embed-wrap{background:#fff;margin:0;line-height:0;}
+  .divider-page{width:100%;min-height:100vh;display:flex;flex-direction:column;background:#fff;padding:40px 48px;box-sizing:border-box;}
+  .divider-header{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:20px;border-bottom:3px solid #cc0000;margin-bottom:0;}
+  .divider-logo img{height:52px;max-width:160px;object-fit:contain;}
+  .divider-lnum{font-family:'Montserrat',Arial,sans-serif;font-size:32px;font-weight:900;color:#cc0000;letter-spacing:-0.01em;line-height:1.1;text-align:right;max-width:50%;}
+  .divider-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px 0;}
+  .divider-img{margin-bottom:8px;}
+  .divider-name{font-family:'Montserrat',Arial,sans-serif;font-size:22px;font-weight:700;color:#111;text-align:center;letter-spacing:0.05em;text-transform:uppercase;}
+  .divider-model{font-family:'Courier New',monospace;font-size:13px;color:#666;text-align:center;line-height:1.8;}
+  .divider-mfr{font-size:13px;color:#aaa;font-weight:600;text-align:center;letter-spacing:0.08em;text-transform:uppercase;}
+  .divider-footer{display:flex;justify-content:space-between;padding-top:16px;border-top:1px solid #eee;font-size:11px;color:#bbb;font-family:'Montserrat',Arial,sans-serif;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;}
+  @media print{.divider-page{min-height:100vh;page-break-after:always;}}
   .cs-embed-wrap embed{display:block;width:100%;border:none;}
   @media print{.cs-embed-wrap{page-break-inside:avoid;}}
   /* ── Footer ── */
@@ -594,6 +630,14 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   }];
 }
 
+// ─── Extract fixture type prefix from name (e.g. "L-2 Downlight" → "L-2", "F1 Panel" → "F1") ──
+function extractTypeCode(name) {
+  if (!name) return "";
+  // Match patterns like L-1, L2, F1, D-3, A1, etc. at the start of the name
+  const match = name.match(/^([A-Za-z]{1,2}-?\d+)/);
+  return match ? match[1].toUpperCase() : "";
+}
+
 // ─── Project Tab Bar ──────────────────────────────────────────────────────────
 let projIdCounter = 1;
 const newProject = (name = "New Project") => ({ id: projIdCounter++, name, fixtures: [], editingId: null });
@@ -606,7 +650,7 @@ function ProjectTabs({ projects, activeId, onSelect, onAdd, onRename, onDelete }
   const commitRename = (id) => { if (renameVal.trim()) onRename(id, renameVal.trim()); setRenamingId(null); };
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: "2px", overflowX: "auto", padding: "0 28px", background: "#0d0d0d", borderBottom: "1px solid #1a1a1a", minHeight: "42px" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: "2px", overflowX: "auto", padding: "0 28px", background: "#2e2e2e", borderBottom: "1px solid #4a4a4a", minHeight: "42px" }}>
       {projects.map(p => (
         <div key={p.id} onClick={() => onSelect(p.id)}
           style={{ display: "flex", alignItems: "center", gap: "6px", padding: "0 14px", height: "42px", cursor: "pointer", borderBottom: `2px solid ${activeId === p.id ? "#cc0000" : "transparent"}`, background: activeId === p.id ? "#141414" : "transparent", flexShrink: 0, transition: "all 0.15s" }}>
@@ -687,13 +731,14 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [manufacturers, setManufacturers] = useState(() => stored?.manufacturers || [...DEFAULT_MANUFACTURERS]);
   const [reps, setReps] = useState(() => stored?.reps || [...DEFAULT_REPS]);
+  const [fixtureTypes, setFixtureTypes] = useState(() => stored?.fixtureTypes || [...FIXTURE_TYPES]);
   const [brand, setBrand] = useState(() => stored?.brand || { logo: null, logoName: "", name: "" });
   const [exporting, setExporting] = useState(false);
   const dlRef = useRef();
 
   // Auto-save whenever key state changes
   useEffect(() => {
-    saveToStorage({ projects, activeProjectId, manufacturers, reps, brand });
+    saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes });
   }, [projects, activeProjectId, manufacturers, reps, brand]);
 
   // Active project helpers
@@ -753,17 +798,20 @@ export default function App() {
   const grandNet = allFixtures.reduce((s, f) => s + (parseFloat(f.distributorNet||0) * parseInt(f.qty||1) || 0), 0); // eslint-disable-line no-unused-vars
 
   return (
-    <div style={{ minHeight: "100vh", background: "#0a0a0a", color: "#ccc", fontFamily: "'Montserrat', sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: "#3d3d3d", color: "#ccc", fontFamily: "'Montserrat', sans-serif" }}>
       {showSettings && (
         <SettingsModal manufacturers={manufacturers} reps={reps}
           onAddManufacturer={addManufacturer} onAddRep={addRep}
           onRemoveManufacturer={removeManufacturer} onRemoveRep={removeRep}
           brand={brand} onBrandChange={setBrand}
-          onClose={() => setShowSettings(false)} />
+          onClose={() => setShowSettings(false)}
+          fixtureTypesList={fixtureTypes}
+          onAddFixtureTypeSettings={(t) => setFixtureTypes(prev => prev.includes(t) ? prev : [...prev, t].sort())}
+          onRemoveFixtureTypeSettings={(t) => setFixtureTypes(prev => prev.filter(x => x !== t))} />
       )}
 
       {/* Top header */}
-      <div style={{ background: "#0f0f0f", borderBottom: "1px solid #1e1e1e", padding: "12px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div style={{ background: "#333333", borderBottom: "1px solid #4a4a4a", padding: "12px 28px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {brand.logo && <img src={brand.logo} alt="logo" style={{ height: "26px", maxWidth: "80px", objectFit: "contain", opacity: 0.9 }} />}
           <div>
@@ -778,8 +826,8 @@ export default function App() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
-          <button onClick={() => setShowSettings(true)} style={{ background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "7px", padding: "7px 11px", color: "#888", fontSize: "13px", cursor: "pointer" }} title="Settings">⚙︎</button>
-          <button onClick={() => { saveToStorage({ projects, activeProjectId, manufacturers, reps, brand }); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
+          <button onClick={() => setShowSettings(true)} style={{ background: "#3a3a3a", border: "1px solid #2a2a2a", borderRadius: "7px", padding: "7px 11px", color: "#888", fontSize: "13px", cursor: "pointer" }} title="Settings">⚙︎</button>
+          <button onClick={() => { saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes }); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
             style={{ background: saved ? "#1a0000" : "#1a1a1a", color: saved ? "#cc0000" : "#888", border: `1px solid ${saved ? "#4a0000" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", transition: "all 0.2s" }}>
             {saved ? "✓ Saved" : "Save"}
           </button>
@@ -796,7 +844,7 @@ export default function App() {
       />
 
       {/* Project toolbar */}
-      <div style={{ background: "#0f0f0f", borderBottom: "1px solid #1a1a1a", padding: "10px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+      <div style={{ background: "#333333", borderBottom: "1px solid #4a4a4a", padding: "10px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
           <span style={{ fontSize: "13px", fontWeight: "700", color: "#fff" }}>{activeProject.name}</span>
           <div style={{ display: "flex", gap: "16px" }}>
@@ -837,7 +885,7 @@ export default function App() {
       {fixtures.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "48px 2fr 1fr 90px 80px 90px 100px 44px", padding: "10px 28px 6px", borderBottom: "1px solid #161616" }}>
           {["","Fixture / Model","Rep","Wattage","Color Temp","Dist. Net","Total Net",""].map((h,i) => (
-            <span key={i} style={{ fontSize: "10px", color: "#444", letterSpacing: "0.08em", fontFamily: "monospace", paddingLeft: i===1?"12px":0 }}>{h.toUpperCase()}</span>
+            <span key={i} style={{ fontSize: "10px", color: "#e0e0e0", letterSpacing: "0.08em", fontFamily: "monospace", paddingLeft: i===1?"12px":0, fontWeight: "700" }}>{h.toUpperCase()}</span>
           ))}
         </div>
       )}
@@ -845,10 +893,10 @@ export default function App() {
       {/* Fixture list */}
       <div style={{ padding: "16px 28px 60px" }}>
         {fixtures.length === 0 && (
-          <div style={{ textAlign: "center", padding: "80px 0", color: "#333" }}>
+          <div style={{ textAlign: "center", padding: "80px 0", color: "#ccc" }}>
             <div style={{ fontSize: "40px", marginBottom: "12px" }}>💡</div>
-            <p style={{ margin: "0 0 6px", fontSize: "14px" }}>No fixtures in <strong style={{ color: "#555" }}>{activeProject.name}</strong></p>
-            <p style={{ margin: "0 0 20px", fontSize: "12px", color: "#444" }}>Add fixtures or switch to another project tab</p>
+            <p style={{ margin: "0 0 6px", fontSize: "14px" }}>No fixtures in <strong style={{ color: "#fff" }}>{activeProject.name}</strong></p>
+            <p style={{ margin: "0 0 20px", fontSize: "12px", color: "#bbb" }}>Add fixtures or switch to another project tab</p>
             <button onClick={addFixture} style={addBtnStyle}>+ Add Fixture</button>
           </div>
         )}
@@ -865,7 +913,8 @@ export default function App() {
             {mfrFixtures.map(f => (
               <FixtureRow key={f.id} fixture={f} onUpdate={updateFixture} onDelete={() => deleteFixture(f.id)}
                 isEditing={editingId===f.id} onEditToggle={() => setEditingId(editingId===f.id?null:f.id)}
-                manufacturers={manufacturers} reps={reps} onAddManufacturer={addManufacturer} onAddRep={addRep} />
+                manufacturers={manufacturers} reps={reps} onAddManufacturer={addManufacturer} onAddRep={addRep}
+                fixtureTypes={fixtureTypes} onAddFixtureType={(t) => setFixtureTypes(prev => prev.includes(t) ? prev : [...prev, t].sort())} />
             ))}
           </div>
         ))}
@@ -875,15 +924,3 @@ export default function App() {
 }
 
 function Stat({ label, value, color }) {
-  return (
-    <div style={{ textAlign: "right" }}>
-      <div style={{ fontSize: "10px", color: "#555", fontFamily: "monospace", letterSpacing: "0.06em" }}>{label}</div>
-      <div style={{ fontSize: "15px", fontWeight: "700", color }}>{value}</div>
-    </div>
-  );
-}
-
-const inputStyle = { width: "100%", background: "#1a1a1a", border: "1px solid #2a2a2a", borderRadius: "7px", padding: "8px 10px", color: "#ddd", fontSize: "13px", boxSizing: "border-box", outline: "none", fontFamily: "inherit" };
-const labelStyle = { display: "block", fontSize: "10px", color: "#555", letterSpacing: "0.08em", marginBottom: "5px", fontFamily: "monospace", textTransform: "uppercase" };
-const addBtnStyle = { background: "#cc0000", color: "#fff", border: "none", borderRadius: "7px", padding: "8px 14px", fontWeight: "700", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" };
-const miniBtn = (bg, color) => ({ background: bg, color, border: "none", borderRadius: "6px", padding: "6px 10px", fontSize: "12px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" });
