@@ -88,22 +88,8 @@ class handler(BaseHTTPRequestHandler):
                         draw.rectangle([x0, y0, x1, y1], fill=HIGHLIGHT_COLOR)
                     img = Image.alpha_composite(img, overlay)
 
-                new_img = Image.new("RGBA", (W, H + MARGIN), (255, 255, 255, 255))
-                draw2 = ImageDraw.Draw(new_img)
-                draw2.rectangle([0, 0, W, MARGIN], fill=(255, 255, 255, 255))
-                draw2.rectangle([0, MARGIN - BORDER_H, W, MARGIN], fill=(*BORDER_COLOR, 255))
-
-                if logo:
-                    ratio = logo.width / logo.height
-                    logo_w = int(LOGO_H * ratio)
-                    logo_resized = logo.resize((logo_w, LOGO_H), Image.LANCZOS)
-                    logo_y = (MARGIN - BORDER_H - LOGO_H) // 2
-                    new_img.paste(logo_resized, (24, logo_y), logo_resized)
-                else:
-                    draw2.rectangle([0, 0, 6, MARGIN - BORDER_H], fill=(*BORDER_COLOR, 255))
-
-                new_img.paste(img, (0, MARGIN), img)
-                final = new_img.convert("RGB")
+                # No margin stamp - the HTML header bar already shows the logo
+                final = img.convert("RGB")
                 buf = io.BytesIO()
                 final.save(buf, format="PNG", optimize=True)
                 b64 = base64.b64encode(buf.getvalue()).decode()
