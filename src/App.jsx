@@ -99,8 +99,16 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
 
       try {
         const brandLogo = window.__brandLogo || null;
-        // Extract highlight terms from model number field
         const modelLines = (local.modelNumber || "").split("\n").map(l => l.trim()).filter(l => l.length >= 3);
+
+        // Only call the API when running on a real server (Vercel), not in Claude artifact
+        const isVercel = window.location.hostname !== "claude.ai" && !window.location.hostname.includes("localhost") && window.location.hostname !== "";
+        if (!isVercel) {
+          setConvertError("PDF conversion only works on the deployed app (lighting-schedule.vercel.app). Upload the PDF there, or send it to Claude chat for manual conversion.");
+          setConverting(false);
+          return;
+        }
+
         const res = await fetch("/api/convert-pdf", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
