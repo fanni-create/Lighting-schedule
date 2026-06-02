@@ -89,6 +89,14 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
     setConverting(true);
     setConvertError(null);
 
+    // Check file size - Vercel free tier has 4.5MB request limit
+    // base64 adds ~33% overhead so max safe PDF size is ~3MB
+    if (f.size > 3 * 1024 * 1024) {
+      setConvertError(`PDF too large (${(f.size/1024/1024).toFixed(1)}MB). Max 3MB. Try compressing at smallpdf.com first.`);
+      setConverting(false);
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = async (ev) => {
       const dataUrl = ev.target.result;
