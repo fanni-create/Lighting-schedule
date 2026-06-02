@@ -1,6 +1,6 @@
 /* eslint-disable */
 import { useState, useMemo, useRef, useEffect } from "react";
- 
+
 // Load Montserrat font
 const fontLink = document.createElement("link");
 fontLink.href = "https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800;900&display=swap";
@@ -429,6 +429,30 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   const logoHtml = brand.logo ? `<img src="${brand.logo}" alt="logo" style="height:48px;max-width:160px;object-fit:contain;display:block;" />` : "";
   const companyHtml = brand.name ? `<div style="font-size:15px;font-weight:800;color:#111;letter-spacing:-0.01em;line-height:1.1;">${brand.name}</div>` : "";
 
+  // Cover page
+  const preparedByHtml = (brand.preparedBy || "").split("\n").map(l => `<div>${l}</div>`).join("");
+  const coverPage = `
+    <div class="cover-page">
+      <div class="cover-inner">
+        <div class="cover-logo">
+          ${brand.logo ? `<img src="${brand.logo}" alt="logo" style="max-height:80px;max-width:200px;object-fit:contain;display:block;" />` : ""}
+        </div>
+        <div class="cover-body">
+          <div class="cover-project">${projectName || "Untitled Project"}</div>
+          ${brand.address1 ? `<div class="cover-address">${brand.address1}</div>` : ""}
+          ${brand.address2 ? `<div class="cover-address">${brand.address2}</div>` : ""}
+          <div class="cover-title">LIGHTING DESIGN CUTSHEET PACKAGE</div>
+          <div class="cover-date">${today.replace(/(\w+)\s(\d+),\s(\d+)/, (_, m, d, y) => {
+            const months = {January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12"};
+            return (months[m]||"01") + "." + d.padStart(2,"0") + "." + y;
+          })}</div>
+          ${brand.preparedBy ? `<div class="cover-prepared">${preparedByHtml}</div>` : ""}
+          ${brand.projectNumber ? `<div class="cover-projnum">PROJECT NO: ${brand.projectNumber}</div>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="page-break"></div>`;
+
   const specSections = grouped.map(([mfr, mfrFixtures]) => {
     const mfrTotal = mfrFixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
     const rows = mfrFixtures.map(f => {
@@ -626,6 +650,16 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   .page-footer{margin-top:36px;padding-top:12px;border-top:2px solid #cc0000;display:flex;justify-content:space-between;font-size:10px;color:#bbb;font-family:'JetBrains Mono',monospace;}
   /* ── Utilities ── */
   .page-break{page-break-before:always;break-before:page;}
+  .cover-page{width:100%;height:270mm;background:#cc0000;display:flex;align-items:stretch;page-break-after:always;page-break-inside:avoid;overflow:hidden;box-sizing:border-box;}
+  .cover-inner{flex:1;display:flex;flex-direction:column;padding:40px 48px;box-sizing:border-box;overflow:hidden;}
+  .cover-logo{margin-bottom:auto;padding-bottom:40px;}
+  .cover-body{display:flex;flex-direction:column;gap:16px;}
+  .cover-project{font-family:'Montserrat',Arial,sans-serif;font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.01em;line-height:1.2;text-transform:uppercase;}
+  .cover-address{font-family:'Montserrat',Arial,sans-serif;font-size:12px;color:#ffe0e0;font-weight:500;margin-top:-10px;}
+  .cover-title{font-family:'Montserrat',Arial,sans-serif;font-size:14px;font-weight:700;color:#fff;letter-spacing:0.06em;margin-top:8px;}
+  .cover-date{font-family:'Montserrat',Arial,sans-serif;font-size:13px;font-weight:600;color:#fff;}
+  .cover-prepared{font-family:'Montserrat',Arial,sans-serif;font-size:11px;color:#ffe0e0;font-style:italic;line-height:1.7;margin-top:4px;}
+  .cover-projnum{font-family:'Montserrat',Arial,sans-serif;font-size:12px;font-weight:700;color:#fff;margin-top:4px;}
   .no-print{text-align:center;margin-top:40px;padding:24px;background:#fafafa;border-radius:10px;}
   @media print{
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -637,21 +671,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
 </head>
 <body>
 <div class="page">
-  <div class="book-header">
-    <div class="header-left">
-      ${logoHtml}
-      <div>
-        ${companyHtml}
-        <div style="font-size:22px;font-weight:800;color:#111;letter-spacing:-0.02em;line-height:1.1;">${projectName}</div>
-        <div class="header-title">Lighting Cutsheet Package</div>
-        <div style="font-size:11px;color:#999;margin-top:3px;">Generated ${today}</div>
-      </div>
-    </div>
-    <div class="header-right">
-      <div class="fixture-count">${fixtures.length} fixture${fixtures.length !== 1 ? "s" : ""} · ${grouped.length} manufacturer${grouped.length !== 1 ? "s" : ""}${cutsheetCount > 0 ? ` · ${cutsheetCount} cutsheet${cutsheetCount !== 1 ? "s" : ""}` : ""}</div>
-    </div>
-  </div>
-
+  ${coverPage}
   ${toc}
 
   <div class="section-label">Lighting Cutsheet Package</div>
@@ -815,7 +835,15 @@ export default function App() {
     const saved = stored?.brand;
     if (saved?.logo) return saved;
     // Default to public logo if available
-    return { logo: "/logo.jpg", logoName: "logo.jpg", name: saved?.name || "" };
+    return {
+      logo: saved?.logo || "/logo.jpg",
+      logoName: saved?.logoName || "logo.jpg",
+      name: saved?.name || "",
+      address1: saved?.address1 || "",
+      address2: saved?.address2 || "",
+      projectNumber: saved?.projectNumber || "",
+      preparedBy: saved?.preparedBy || "LIGHTING DESIGN AND SPECIFICATIONS BY\nSYSKA HENNESSY GROUP, INC.\nSAN DIEGO LIGHTING DESIGN STUDIO",
+    };
   });
 
   // Keep window.__brandLogo in sync so PDF conversion can access it
