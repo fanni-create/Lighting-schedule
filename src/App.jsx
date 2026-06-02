@@ -946,21 +946,6 @@ function saveToStorage(data) {
   }
 }
 
-    // Save logo separately
-    if (logo) {
-      try {
-        localStorage.setItem(STORAGE_KEY + "_logo", logo);
-      } catch (e) {
-        console.warn("Logo too large for localStorage:", e);
-      }
-    } else {
-      localStorage.removeItem(STORAGE_KEY + "_logo");
-    }
-  } catch (e) {
-    console.warn("localStorage save failed:", e);
-  }
-}
-
 function loadFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
