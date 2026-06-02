@@ -73,7 +73,7 @@ function FixtureThumbnail({ image, onClick }) {
 }
 
 // ─── Fixture Row ──────────────────────────────────────────────────────────────
-function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType }) {
+function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType, showPricing = true }) {
   const [local, setLocal] = useState(fixture);
   const imageRef = useRef(); const cutsheetRef = useRef();
 
@@ -131,7 +131,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
       <input ref={imageRef} type="file" accept="image/*" onChange={handleImg} style={{ display: "none" }} />
       <input ref={cutsheetRef} type="file" accept="application/pdf" onChange={handlePDF} style={{ display: "none" }} />
 
-      <div style={{ display: "grid", gridTemplateColumns: "48px 2fr 1fr 90px 80px 90px 100px 44px", alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
+      <div style={{ display: "grid", gridTemplateColumns: showPricing ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 1fr 90px 80px 44px", alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
         <FixtureThumbnail image={local.image} onClick={() => imageRef.current?.click()} />
         <div style={{ paddingLeft: "12px" }}>
           <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#444", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -147,8 +147,8 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
         <div style={{ fontSize: "12px", color: "#666" }}>{local.rep || <span style={{ color: "#333" }}>—</span>}</div>
         <div>{local.wattage ? <span style={{ fontSize: "12px", color: "#c0d4ff" }}>{local.wattage}W</span> : <span style={{ color: "#333", fontSize: "12px" }}>—</span>}</div>
         <div>{local.colorTemp ? <span style={{ fontSize: "11px", color: ctColor, background: ctColor + "18", border: `1px solid ${ctColor}30`, borderRadius: "4px", padding: "2px 6px", fontFamily: "monospace" }}>{local.colorTemp}</span> : <span style={{ color: "#333", fontSize: "12px" }}>—</span>}</div>
-        <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#333" }}>—</span>}</div>
-        <div style={{ fontSize: "12px", color: "#6fba6f", fontWeight: "600" }}>{totalNet}</div>
+        {showPricing && <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#333" }}>—</span>}</div>}
+        {showPricing && <div style={{ fontSize: "12px", color: "#6fba6f", fontWeight: "600" }}>{totalNet}</div>}
         <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "16px", padding: 0, lineHeight: 1 }}
           onMouseEnter={e => e.target.style.color = "#c0504d"} onMouseLeave={e => e.target.style.color = "#444"}>×</button>
       </div>
@@ -396,7 +396,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
-function exportScheduleBook(fixtures, grouped, brand, projectName) {
+function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true) {
   const fmtMoney = (n) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // eslint-disable-next-line no-unused-vars
   const totalNet = fixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
@@ -434,8 +434,8 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
         </td>
         <td style="padding:10px 8px;vertical-align:middle;font-size:12px;color:#555;">${f.rep || "—"}</td>
         <td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:center;">${f.qty || 1}</td>
-        <td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:right;color:#444;">${f.distributorNet ? fmtMoney(parseFloat(f.distributorNet)) : "—"}</td>
-        <td style="padding:10px 8px;vertical-align:middle;font-size:13px;font-weight:800;text-align:right;color:#cc0000;">${tNet}</td>
+        ${showPricing ? `<td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:right;color:#444;">${f.distributorNet ? fmtMoney(parseFloat(f.distributorNet)) : "—"}</td>
+        <td style="padding:10px 8px;vertical-align:middle;font-size:13px;font-weight:800;text-align:right;color:#cc0000;">${tNet}</td>` : ''}
       </tr>`;
     }).join("");
     const fixtureTags = mfrFixtures.map((f, fi) => {
@@ -446,13 +446,14 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
       <div class="mfr-header">
         <div style="display:flex;flex-direction:column;gap:6px;">
           <span class="mfr-name">${mfr}</span>
+          <div style="display:flex;flex-wrap:wrap;align-items:center;">${fixtureTags}</div>
         </div>
-        <span class="mfr-stats">${mfrFixtures.length} fixture${mfrFixtures.length !== 1 ? "s" : ""} · ${fmtMoney(mfrTotal)}</span>
+        <span class="mfr-stats">${mfrFixtures.length} fixture${mfrFixtures.length !== 1 ? "s" : ""}${showPricing ? " · " + fmtMoney(mfrTotal) : ""}</span>
       </div>
       <table><thead><tr>
         <th style="width:56px;"></th><th style="text-align:left;">Fixture / Specs</th>
         <th>Rep</th><th style="text-align:center;">Qty</th>
-        <th style="text-align:right;">Unit Net</th><th style="text-align:right;">Total Net</th>
+        ${showPricing ? '<th style="text-align:right;">Unit Net</th><th style="text-align:right;">Total Net</th>' : ''}
       </tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join("");
 
@@ -756,6 +757,7 @@ export default function App() {
   const [fixtureTypes, setFixtureTypes] = useState(() => stored?.fixtureTypes || [...FIXTURE_TYPES]);
   const [brand, setBrand] = useState(() => stored?.brand || { logo: null, logoName: "", name: "" });
   const [exporting, setExporting] = useState(false);
+  const [showPricing, setShowPricing] = useState(true);
   const dlRef = useRef();
 
   // Auto-save whenever key state changes
@@ -800,12 +802,12 @@ export default function App() {
   }, [fixtures, search]);
 
   const grouped = useMemo(() => {
-    const g = {}; filtered.forEach(f => { const k = f.manufacturer || "FIXTURE SCHEDULE"; if (!g[k]) g[k] = []; g[k].push(f); });
+    const g = {}; filtered.forEach(f => { const k = f.manufacturer || "No Manufacturer"; if (!g[k]) g[k] = []; g[k].push(f); });
     return Object.entries(g).sort(([a],[b]) => a.localeCompare(b));
   }, [filtered]);
 
   const groupedAll = useMemo(() => {
-    const g = {}; fixtures.forEach(f => { const k = f.manufacturer || "FIXTURE SCHEDULE"; if (!g[k]) g[k] = []; g[k].push(f); });
+    const g = {}; fixtures.forEach(f => { const k = f.manufacturer || "No Manufacturer"; if (!g[k]) g[k] = []; g[k].push(f); });
     return Object.entries(g).sort(([a],[b]) => a.localeCompare(b));
   }, [fixtures]);
 
@@ -849,6 +851,10 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
           <button onClick={() => setShowSettings(true)} style={{ background: "#3a3a3a", border: "1px solid #2a2a2a", borderRadius: "7px", padding: "7px 11px", color: "#888", fontSize: "13px", cursor: "pointer" }} title="Settings">⚙︎</button>
+          <button onClick={() => setShowPricing(p => !p)}
+            style={{ background: "#1a1a1a", color: showPricing ? "#6fba6f" : "#555", border: `1px solid ${showPricing ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
+            {showPricing ? "$ Hide Pricing" : "$ Show Pricing"}
+          </button>
           <button onClick={() => { saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes }); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
             style={{ background: saved ? "#1a0000" : "#1a1a1a", color: saved ? "#cc0000" : "#888", border: `1px solid ${saved ? "#4a0000" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", transition: "all 0.2s" }}>
             {saved ? "✓ Saved" : "Save"}
@@ -886,7 +892,7 @@ export default function App() {
               if (!fixtures.length || exporting) return;
               setExporting(true);
               try {
-                const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name);
+                const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name, showPricing);
                 const file = files[0];
                 const url = URL.createObjectURL(file.blob);
                 const a = dlRef.current;
@@ -933,7 +939,8 @@ export default function App() {
               <FixtureRow key={f.id} fixture={f} onUpdate={updateFixture} onDelete={() => deleteFixture(f.id)}
                 isEditing={editingId===f.id} onEditToggle={() => setEditingId(editingId===f.id?null:f.id)}
                 manufacturers={manufacturers} reps={reps} onAddManufacturer={addManufacturer} onAddRep={addRep}
-                fixtureTypes={fixtureTypes} onAddFixtureType={(t) => setFixtureTypes(prev => prev.includes(t) ? prev : [...prev, t].sort())} />
+                fixtureTypes={fixtureTypes} onAddFixtureType={(t) => setFixtureTypes(prev => prev.includes(t) ? prev : [...prev, t].sort())}
+                showPricing={showPricing} />
             ))}
           </div>
         ))}
