@@ -458,19 +458,21 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   }).join("");
 
   const fixturesWithCutsheets = fixtures.filter(f => f.cutsheet);
-  const toc = fixturesWithCutsheets.length > 0 ? `
-    <div class="toc">
-      <div class="toc-title">Cutsheet Index</div>
-      ${fixturesWithCutsheets.map((f, i) => {
-        const model = f.modelNumber ? f.modelNumber.split("\n")[0].trim() : "";
-        return `<div class="toc-row">
-          <span class="toc-num">CS ${String(i+1).padStart(2,"0")}</span>
-          <span class="toc-name">${f.name || "Untitled"}</span>
-          ${model ? `<span class="toc-model">${model}</span>` : ""}
-          <span class="toc-mfr">${f.manufacturer || ""}</span>
-        </div>`;
-      }).join("")}
-    </div>` : "";
+  const toc = `
+    <div class="general-notes">
+      <div class="notes-title">GENERAL NOTES</div>
+      <ol class="notes-list">
+        <li>CONTRACTOR SHALL PROVIDE ALL NECESSARY ACCESSORIES, POWER SUPPLIES, DRIVERS AND COMPONENTS FOR COMPLETE INSTALLATION.</li>
+        <li>ALL LENGTHS OF LINEAR PRODUCTS ARE SCALED ON ARCHITECTURAL REFLECTED CEILING PLANS. CONTRACTOR SHALL VERIFY EXACT FIELD LENGTHS PRIOR TO ORDERING.</li>
+        <li>AFTER INSTALLATION, AIM AND ADJUST LUMINAIRE FOCUS AND LIGHT LEVELS AS DIRECTED BY THE ARCHITECT AND THE SYSKA LIGHTING DESIGNER.</li>
+        <li>CONTRACTOR SHALL VERIFY FINISH WITH CLIENT/ARCHITECT PRIOR TO ORDERING.</li>
+        <li>WHERE LOW VOLTAGE FIXTURES ARE SPECIFIED; CONTRACTOR SHALL PROVIDE ALL LEADER OR JUMPER CABLES, MOUNTING TRACK, AND DATA ENABLERS; ELECTRICAL CONTRACTOR SHALL PROVIDE ALL REQUIRED COMPONENTS FOR PROPER OPERATION.</li>
+        <li>WHERE LOW VOLTAGE FIXTURES ARE SPECIFIED; CONTRACTOR SHALL PROVIDE REMOTE DIMMABLE POWER SUPPLIES/DRIVERS. DRIVERS SHALL BE INSTALLED IN AN ACCESSIBLE AND PASSIVELY VENTILATED LOCATION FOR MAINTENANCE PURPOSES.</li>
+        <li>PRIOR TO PURCHASE OF CUSTOM FABRICATED FIXTURES / ELEMENTS; SHOP DRAWINGS SHALL BE PROVIDED TO THE LIGHTING DESIGNER AND ARCHITECT FROM THE SUPPLIER / GENERAL CONTRACTOR FOR APPROVAL.</li>
+        <li>REFERENCE COMCHECK FORMS FOR TOTAL WATTS PER LUMINAIRE.</li>
+      </ol>
+      <div class="notes-footer">SPECIFIED BY SYSKA HENNESSY GROUP, SAN DIEGO, CA — LIGHTING DESIGN STUDIO WITH PRODUCT SUPPORT FROM LOCAL SAN DIEGO REPS</div>
+    </div>`;
 
   const cutsheetPages = fixturesWithCutsheets.map((f, i) => {
     const modelLines = f.modelNumber ? f.modelNumber.split("\n").map(l => l.trim()).filter(Boolean) : [];
@@ -552,14 +554,11 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
   .header-right{text-align:right;}
   .fixture-count{font-size:12px;color:#888;font-weight:600;}
   /* ── TOC ── */
-  .toc{margin:18px 0 26px;padding:14px 18px;background:#fafafa;border-left:4px solid #cc0000;border-radius:0 6px 6px 0;}
-  .toc-title{font-size:10px;font-weight:700;letter-spacing:0.12em;color:#cc0000;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:8px;}
-  .toc-row{display:flex;align-items:center;gap:10px;padding:4px 0;border-bottom:1px solid #f0f0f0;font-size:12px;}
-  .toc-row:last-child{border-bottom:none;}
-  .toc-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:#fff;background:#cc0000;border-radius:3px;padding:1px 6px;flex-shrink:0;font-weight:700;}
-  .toc-name{font-weight:700;color:#111;flex:1;}
-  .toc-model{font-family:'JetBrains Mono',monospace;font-size:11px;color:#888;}
-  .toc-mfr{font-size:11px;color:#aaa;}
+  .general-notes{margin:20px 0 28px;padding:20px 24px;background:#fafafa;border-left:4px solid #cc0000;border-radius:0 6px 6px 0;}
+  .notes-title{font-size:10px;font-weight:800;letter-spacing:0.18em;color:#cc0000;text-transform:uppercase;margin-bottom:14px;font-family:'Montserrat',Arial,sans-serif;}
+  .notes-list{margin:0;padding-left:20px;}
+  .notes-list li{font-size:11px;color:#333;line-height:1.8;padding:2px 0;font-weight:500;letter-spacing:0.01em;}
+  .notes-footer{margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;font-size:8.5px;color:#cc0000;font-weight:700;letter-spacing:0.02em;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   /* ── Section label ── */
   .section-label{font-size:10px;font-weight:700;letter-spacing:0.12em;color:#cc0000;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin:28px 0 10px;display:flex;align-items:center;gap:10px;}
   .section-label::after{content:"";flex:1;height:2px;background:#cc0000;opacity:0.15;}
@@ -929,10 +928,7 @@ export default function App() {
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
               <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#cc0000", letterSpacing: "0.08em", fontWeight: "700" }}>{mfr.toUpperCase()}</span>
               <div style={{ flex: 1, height: "1px", background: "#1c1c1c" }} />
-              <span style={{ fontSize: "10px", color: "#444", fontFamily: "monospace" }}>{mfrFixtures.length} fixture{mfrFixtures.length!==1?"s":""}</span>
-              <span style={{ fontSize: "10px", color: "#cc0000", fontFamily: "monospace" }}>
-                ${mfrFixtures.reduce((s,f)=>s+(parseFloat(f.distributorNet||0)*parseInt(f.qty||1)||0),0).toLocaleString("en-US",{minimumFractionDigits:2})}
-              </span>
+              <span style={{ fontSize: "10px", color: "#aaa", fontFamily: "monospace" }}>{mfrFixtures.length} fixture{mfrFixtures.length!==1?"s":""}</span>
             </div>
             {mfrFixtures.map(f => (
               <FixtureRow key={f.id} fixture={f} onUpdate={updateFixture} onDelete={() => deleteFixture(f.id)}
