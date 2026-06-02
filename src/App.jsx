@@ -446,7 +446,6 @@ function exportScheduleBook(fixtures, grouped, brand, projectName) {
       <div class="mfr-header">
         <div style="display:flex;flex-direction:column;gap:6px;">
           <span class="mfr-name">${mfr}</span>
-          <div style="display:flex;flex-wrap:wrap;align-items:center;">${fixtureTags}</div>
         </div>
         <span class="mfr-stats">${mfrFixtures.length} fixture${mfrFixtures.length !== 1 ? "s" : ""} · ${fmtMoney(mfrTotal)}</span>
       </div>
