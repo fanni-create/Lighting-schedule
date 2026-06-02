@@ -889,21 +889,62 @@ const STORAGE_KEY = "fixture-schedule-v1";
 
 function saveToStorage(data) {
   try {
-    // Store logo and library separately to avoid hitting size limits
     const { brand, library, ...rest } = data;
     const { logo, ...brandWithoutLogo } = brand || {};
 
-    // Save main data without logo and library images
-    const libraryStripped = (library || []).map(f => ({ ...f, image: null, cutsheetPageImages: null }));
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...rest, brand: brandWithoutLogo, library: libraryStripped }));
+    // Strip images from fixtures and library to save space
+    const stripImages = (fixtures) => (fixtures || []).map(f => ({
+      ...f, image: null, cutsheetPageImages: null
+    }));
+
+    const projectsStripped = (rest.projects || []).map(p => ({
+      ...p, fixtures: stripImages(p.fixtures)
+    }));
+
+    const libraryStripped = stripImages(library || []);
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      ...rest,
+      projects: projectsStripped,
+      brand: brandWithoutLogo,
+      library: libraryStripped
+    }));
+
+    // Save logo separately
+    if (logo) {
+      try {
+        localStorage.setItem(STORAGE_KEY + "_logo", logo);
+      } catch (e) {
+        console.warn("Logo too large for localStorage:", e);
+      }
+    } else {
+      localStorage.removeItem(STORAGE_KEY + "_logo");
+    }
 
     // Save library with images separately
     try {
       localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(library || []));
     } catch(e) {
-      console.warn("Library too large, saving without images");
       localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(libraryStripped));
     }
+
+    // Save fixture images separately per fixture
+    try {
+      const imageMap = {};
+      (rest.projects || []).forEach(p => {
+        (p.fixtures || []).forEach(f => {
+          if (f.image) imageMap[f.id + "_img"] = f.image;
+          if (f.cutsheetPageImages) imageMap[f.id + "_cs"] = JSON.stringify(f.cutsheetPageImages);
+        });
+      });
+      localStorage.setItem(STORAGE_KEY + "_images", JSON.stringify(imageMap));
+    } catch(e) {
+      console.warn("Images too large for localStorage");
+    }
+  } catch (e) {
+    console.warn("localStorage save failed:", e);
+  }
+}
 
     // Save logo separately
     if (logo) {
@@ -917,19 +958,6 @@ function saveToStorage(data) {
     }
   } catch (e) {
     console.warn("localStorage save failed:", e);
-    // Try saving without fixtures images as fallback
-    try {
-      const stripped = {
-        ...data,
-        projects: data.projects?.map(p => ({
-          ...p,
-          fixtures: p.fixtures?.map(f => ({ ...f, image: null, cutsheetPageImages: null }))
-        }))
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
-    } catch (e2) {
-      console.warn("localStorage fallback also failed:", e2);
-    }
   }
 }
 
@@ -943,16 +971,30 @@ function loadFromStorage() {
     }
     // Restore logo from separate key
     const logo = localStorage.getItem(STORAGE_KEY + "_logo");
-    if (logo && data.brand) {
-      data.brand.logo = logo;
-    }
-    // Restore library with images from separate key
+    if (logo && data.brand) data.brand.logo = logo;
+
+    // Restore library with images
     try {
-      const libraryRaw = localStorage.getItem(STORAGE_KEY + "_library");
-      if (libraryRaw) {
-        data.library = JSON.parse(libraryRaw);
+      const libRaw = localStorage.getItem(STORAGE_KEY + "_library");
+      if (libRaw) data.library = JSON.parse(libRaw);
+    } catch(e) {}
+
+    // Restore fixture images
+    try {
+      const imgRaw = localStorage.getItem(STORAGE_KEY + "_images");
+      if (imgRaw) {
+        const imageMap = JSON.parse(imgRaw);
+        data.projects = (data.projects || []).map(p => ({
+          ...p,
+          fixtures: (p.fixtures || []).map(f => ({
+            ...f,
+            image: imageMap[f.id + "_img"] || null,
+            cutsheetPageImages: imageMap[f.id + "_cs"] ? JSON.parse(imageMap[f.id + "_cs"]) : null,
+          }))
+        }));
       }
     } catch(e) {}
+
     return data;
   } catch (e) {
     return null;
