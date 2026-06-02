@@ -73,7 +73,7 @@ function FixtureThumbnail({ image, onClick }) {
 }
 
 // ─── Fixture Row ──────────────────────────────────────────────────────────────
-function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType, showPricing = true, onSaveToLibrary }) {
+function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType, showPricing = true, showRep = true, onSaveToLibrary }) {
   const [local, setLocal] = useState(fixture);
   const imageRef = useRef(); const cutsheetRef = useRef();
 
@@ -147,7 +147,9 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
       <input ref={imageRef} type="file" accept="image/*" onChange={handleImg} style={{ display: "none" }} />
       <input ref={cutsheetRef} type="file" accept="application/pdf" onChange={handlePDF} style={{ display: "none" }} />
 
-      <div style={{ display: "grid", gridTemplateColumns: showPricing ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 1fr 90px 80px 44px", alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
+      <div style={{ display: "grid", gridTemplateColumns: showPricing
+              ? (showRep ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 90px 80px 90px 100px 44px")
+              : (showRep ? "48px 2fr 1fr 90px 80px 44px" : "48px 2fr 90px 80px 44px"), alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
         <FixtureThumbnail image={local.image} onClick={() => imageRef.current?.click()} />
         <div style={{ paddingLeft: "12px" }}>
           <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#444", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -430,7 +432,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
-function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true) {
+function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true, showRep = true, groupBy = "manufacturer") {
   const fmtMoney = (n) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // eslint-disable-next-line no-unused-vars
   const totalNet = fixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
@@ -444,10 +446,10 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   const preparedByHtml = (brand.preparedBy || "").split("\n").map(l => `<div>${l}</div>`).join("");
   const coverPage = `
     <div class="cover-page">
+      <div class="cover-logo-strip">
+        ${brand.logo ? `<img src="${brand.logo}" alt="logo" style="max-height:70px;max-width:220px;object-fit:contain;display:block;" />` : ""}
+      </div>
       <div class="cover-inner">
-        <div class="cover-logo">
-          ${brand.logo ? `<img src="${brand.logo}" alt="logo" style="max-height:80px;max-width:200px;object-fit:contain;display:block;" />` : ""}
-        </div>
         <div class="cover-body">
           <div class="cover-project">${projectName || "Untitled Project"}</div>
           ${brand.address1 ? `<div class="cover-address">${brand.address1}</div>` : ""}
@@ -464,7 +466,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
     </div>
     <div class="page-break"></div>`;
 
-  const specSections = grouped.map(([mfr, mfrFixtures]) => {
+  const specSections = grouped.map(([mfr, mfrFixtures], groupIdx) => {
     const mfrTotal = mfrFixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
     const rows = mfrFixtures.map(f => {
       const tNet = f.distributorNet ? fmtMoney(parseFloat(f.distributorNet) * parseInt(f.qty || 1)) : "—";
@@ -490,7 +492,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
           <div style="margin-top:5px;">${tags}</div>
           ${f.notes ? `<div style="margin-top:5px;font-size:11px;color:#888;font-style:italic;">${f.notes}</div>` : ""}
         </td>
-        <td style="padding:10px 8px;vertical-align:middle;font-size:12px;color:#555;">${f.rep || "—"}</td>
+        ${showRep ? `<td style="padding:10px 8px;vertical-align:middle;font-size:12px;color:#555;">${f.rep || "—"}</td>` : ''}
         <td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:center;">${f.qty || 1}</td>
         ${showPricing ? `<td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:right;color:#444;">${f.distributorNet ? fmtMoney(parseFloat(f.distributorNet)) : "—"}</td>
         <td style="padding:10px 8px;vertical-align:middle;font-size:13px;font-weight:800;text-align:right;color:#cc0000;">${tNet}</td>` : ''}
@@ -500,7 +502,9 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
       const globalIdx = grouped.reduce((acc, [m, fs], gi) => gi < grouped.indexOf(grouped.find(([gm]) => gm === mfr)) ? acc + fs.length : acc, 0) + fi + 1;
       return `<span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:#fff;background:#cc0000;border-radius:3px;padding:1px 6px;margin-right:4px;">F${globalIdx}</span><span style="font-size:11px;color:#ccc;margin-right:10px;">${f.name || "Untitled"}</span>`;
     }).join("");
-    return `<div class="mfr-section">
+    return `${groupBy === "rep" && groupIdx > 0 ? '<div class="page-break"></div>' : ''}
+    ${groupBy === "rep" ? `<div class="rep-header"><span class="rep-label">REP:</span> <span class="rep-name">${mfr}</span></div>` : ''}
+    <div class="mfr-section">
       <div class="mfr-header">
         <div style="display:flex;flex-direction:column;gap:6px;">
           <span class="mfr-name">${mfr}</span>
@@ -510,7 +514,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
       </div>
       <table><thead><tr>
         <th style="width:56px;"></th><th style="text-align:left;">Fixture / Specs</th>
-        <th>Rep</th><th style="text-align:center;">Qty</th>
+        ${showRep ? '<th>Rep</th>' : ''}<th style="text-align:center;">Qty</th>
         ${showPricing ? '<th style="text-align:right;">Unit Net</th><th style="text-align:right;">Total Net</th>' : ''}
       </tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join("");
@@ -622,6 +626,9 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   .section-label::after{content:"";flex:1;height:2px;background:#cc0000;opacity:0.15;}
   /* ── Manufacturer groups ── */
   .mfr-section{margin-bottom:28px;}
+  .rep-header{padding:16px 0 12px;border-bottom:3px solid #cc0000;margin-bottom:20px;display:flex;align-items:baseline;gap:10px;}
+  .rep-label{font-size:10px;font-weight:800;letter-spacing:0.14em;color:#cc0000;text-transform:uppercase;font-family:'Montserrat',Arial,sans-serif;}
+  .rep-name{font-size:20px;font-weight:800;color:#111;font-family:'Montserrat',Arial,sans-serif;letter-spacing:-0.01em;}
   .mfr-header{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;margin-bottom:0;background:#111;border-radius:5px 5px 0 0;}
   .mfr-name{font-size:11px;font-weight:700;letter-spacing:0.1em;color:#fff;font-family:'JetBrains Mono',monospace;text-transform:uppercase;}
   .mfr-stats{font-size:11px;color:#aaa;font-family:'JetBrains Mono',monospace;}
@@ -661,11 +668,11 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   .page-footer{margin-top:36px;padding-top:12px;border-top:2px solid #cc0000;display:flex;justify-content:space-between;font-size:10px;color:#bbb;font-family:'JetBrains Mono',monospace;}
   /* ── Utilities ── */
   .page-break{page-break-before:always;break-before:page;}
-  .cover-page{width:100%;height:270mm;background:#cc0000;display:flex;align-items:stretch;page-break-after:always;page-break-inside:avoid;overflow:hidden;box-sizing:border-box;}
+  .cover-page{width:100%;height:270mm;background:#cc0000;display:flex;flex-direction:column;align-items:stretch;page-break-after:always;page-break-inside:avoid;overflow:hidden;box-sizing:border-box;}
+  .cover-logo-strip{background:#fff;padding:20px 40px;display:flex;align-items:center;flex-shrink:0;}
   .cover-inner{flex:1;display:flex;flex-direction:column;padding:40px 48px;box-sizing:border-box;overflow:hidden;}
-  .cover-logo{margin-bottom:auto;padding-bottom:40px;}
-  .cover-body{display:flex;flex-direction:column;gap:16px;}
-  .cover-project{font-family:'Montserrat',Arial,sans-serif;font-size:22px;font-weight:800;color:#fff;letter-spacing:-0.01em;line-height:1.2;text-transform:uppercase;}
+  .cover-body{display:flex;flex-direction:column;gap:16px;margin-top:auto;}
+  .cover-project{font-family:'Montserrat',Arial,sans-serif;font-size:26px;font-weight:800;color:#fff;letter-spacing:-0.01em;line-height:1.2;text-transform:uppercase;}
   .cover-address{font-family:'Montserrat',Arial,sans-serif;font-size:12px;color:#ffe0e0;font-weight:500;margin-top:-10px;}
   .cover-title{font-family:'Montserrat',Arial,sans-serif;font-size:14px;font-weight:700;color:#fff;letter-spacing:0.06em;margin-top:8px;}
   .cover-date{font-family:'Montserrat',Arial,sans-serif;font-size:13px;font-weight:600;color:#fff;}
@@ -685,7 +692,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   ${coverPage}
   ${toc}
 
-  <div class="section-label">Lighting Cutsheet Package</div>
+  <div class="section-label">${groupBy === "rep" ? "Fixture Schedule by Rep" : "Lighting Cutsheet Package"}</div>
   ${specSections}
   ${pageFooter}
 
@@ -861,6 +868,8 @@ export default function App() {
   useEffect(() => { window.__brandLogo = brand.logo || null; }, [brand.logo]);
   const [exporting, setExporting] = useState(false);
   const [showPricing, setShowPricing] = useState(true);
+  const [showRep, setShowRep] = useState(true);
+  const [groupBy, setGroupBy] = useState("manufacturer"); // "manufacturer" | "rep"
   const [viewMode, setViewMode] = useState("schedule"); // "schedule" | "overview" | "library"
   const [library, setLibrary] = useState(() => stored?.library || []);
   const [showAddToLibrary, setShowAddToLibrary] = useState(null); // fixture id
@@ -914,9 +923,16 @@ export default function App() {
   }, [filtered]);
 
   const groupedAll = useMemo(() => {
-    const g = {}; fixtures.forEach(f => { const k = f.manufacturer || "No Manufacturer"; if (!g[k]) g[k] = []; g[k].push(f); });
+    const g = {};
+    fixtures.forEach(f => {
+      const k = groupBy === "rep"
+        ? (f.rep || "NO REP ASSIGNED")
+        : (f.manufacturer || "FIXTURE SCHEDULE");
+      if (!g[k]) g[k] = [];
+      g[k].push(f);
+    });
     return Object.entries(g).sort(([a],[b]) => a.localeCompare(b));
-  }, [fixtures]);
+  }, [fixtures, groupBy]);
 
   const totals = useMemo(() => ({
     count: fixtures.length,
@@ -967,6 +983,14 @@ export default function App() {
             style={{ background: "#1a1a1a", color: showPricing ? "#6fba6f" : "#555", border: `1px solid ${showPricing ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
             {showPricing ? "$ Hide Pricing" : "$ Show Pricing"}
           </button>
+          <button onClick={() => setShowRep(r => !r)}
+            style={{ background: "#1a1a1a", color: showRep ? "#6fba6f" : "#555", border: `1px solid ${showRep ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
+            {showRep ? "👤 Hide Rep" : "👤 Show Rep"}
+          </button>
+          <button onClick={() => setGroupBy(g => g === "manufacturer" ? "rep" : "manufacturer")}
+            style={{ background: "#1a1a1a", color: groupBy === "rep" ? "#f5a623" : "#555", border: `1px solid ${groupBy === "rep" ? "#6a4a00" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
+            {groupBy === "rep" ? "📋 By Rep" : "📋 By Mfr"}
+          </button>
           <button onClick={() => { saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes }); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
             style={{ background: saved ? "#1a0000" : "#1a1a1a", color: saved ? "#cc0000" : "#888", border: `1px solid ${saved ? "#4a0000" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", transition: "all 0.2s" }}>
             {saved ? "✓ Saved" : "Save"}
@@ -1004,7 +1028,7 @@ export default function App() {
               if (!fixtures.length || exporting) return;
               setExporting(true);
               try {
-                const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name, showPricing);
+                const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name, showPricing, showRep, groupBy);
                 const file = files[0];
                 const url = URL.createObjectURL(file.blob);
                 const a = dlRef.current;
@@ -1016,6 +1040,43 @@ export default function App() {
             disabled={fixtures.length === 0 || exporting}
             style={{ background: fixtures.length > 0 && !exporting ? "#1a0000" : "#141414", color: fixtures.length > 0 && !exporting ? "#cc0000" : "#444", border: `1px solid ${fixtures.length > 0 && !exporting ? "#4a0000" : "#222"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: fixtures.length > 0 && !exporting ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: exporting ? 0.6 : 1 }}>
             {exporting ? "⏳ Exporting…" : "↓ Export Cutsheet Package"}
+          </button>
+          <button
+            disabled={fixtures.length === 0 || exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                // Group fixtures by rep
+                const repGroups = {};
+                fixtures.forEach(f => {
+                  const key = f.rep || "NO REP ASSIGNED";
+                  if (!repGroups[key]) repGroups[key] = [];
+                  repGroups[key].push(f);
+                });
+
+                // Export one file per rep
+                Object.entries(repGroups).forEach(([rep, repFixtures], i) => {
+                  const repGrouped = { [rep]: repFixtures };
+                  const files = exportScheduleBook(repFixtures, Object.entries(repGrouped), brand, activeProject.name + " — " + rep, showPricing, showRep, "rep");
+                  setTimeout(() => {
+                    const url = URL.createObjectURL(files[0].blob);
+                    const a = dlRef.current;
+                    const safeName = rep.replace(/[^a-z0-9]/gi, "-").toLowerCase();
+                    a.href = url;
+                    a.download = "cutsheet-" + safeName + ".html";
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                  }, i * 800);
+                });
+
+                setTimeout(() => setExporting(false), Object.keys(repGroups).length * 800 + 500);
+              } catch(e) {
+                console.error(e);
+                setExporting(false);
+              }
+            }}
+            style={{ background: fixtures.length > 0 && !exporting ? "#1a1500" : "#141414", color: fixtures.length > 0 && !exporting ? "#f5a623" : "#444", border: `1px solid ${fixtures.length > 0 && !exporting ? "#4a3a00" : "#222"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: fixtures.length > 0 && !exporting ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: exporting ? 0.6 : 1 }}>
+            👤 Export by Rep
           </button>
           <a ref={dlRef} style={{ display: "none" }} href="/" aria-hidden="true">download</a>
         </div>
@@ -1135,7 +1196,10 @@ export default function App() {
       {/* Column headers */}
       {fixtures.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: showPricing ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 1fr 90px 80px 44px", padding: "10px 28px 6px", borderBottom: "1px solid #161616" }}>
-          {(showPricing ? ["","Fixture / Model","Rep","Wattage","Color Temp","Dist. Net","Total Net",""] : ["","Fixture / Model","Rep","Wattage","Color Temp",""]).map((h,i) => (
+          {(showPricing
+            ? (showRep ? ["","Fixture / Model","Rep","Wattage","Color Temp","Dist. Net","Total Net",""] : ["","Fixture / Model","Wattage","Color Temp","Dist. Net","Total Net",""])
+            : (showRep ? ["","Fixture / Model","Rep","Wattage","Color Temp",""] : ["","Fixture / Model","Wattage","Color Temp",""])
+          ).map((h,i) => (
             <span key={i} style={{ fontSize: "10px", color: "#e0e0e0", letterSpacing: "0.08em", fontFamily: "monospace", paddingLeft: i===1?"12px":0, fontWeight: "700" }}>{h.toUpperCase()}</span>
           ))}
         </div>
@@ -1154,7 +1218,7 @@ export default function App() {
         {grouped.map(([mfr, mfrFixtures]) => (
           <div key={mfr} style={{ marginBottom: "28px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "10px" }}>
-              <span style={{ fontFamily: "monospace", fontSize: "11px", color: "#cc0000", letterSpacing: "0.08em", fontWeight: "700" }}>{mfr.toUpperCase()}</span>
+              <span style={{ fontFamily: "monospace", fontSize: "11px", color: groupBy === "rep" ? "#f5a623" : "#cc0000", letterSpacing: "0.08em", fontWeight: "700" }}>{mfr.toUpperCase()}</span>
               <div style={{ flex: 1, height: "1px", background: "#1c1c1c" }} />
               <span style={{ fontSize: "10px", color: "#aaa", fontFamily: "monospace" }}>{mfrFixtures.length} fixture{mfrFixtures.length!==1?"s":""}</span>
             </div>
@@ -1164,6 +1228,7 @@ export default function App() {
                 manufacturers={manufacturers} reps={reps} onAddManufacturer={addManufacturer} onAddRep={addRep}
                 fixtureTypes={fixtureTypes} onAddFixtureType={(t) => setFixtureTypes(prev => prev.includes(t) ? prev : [...prev, t].sort())}
                 showPricing={showPricing}
+                showRep={showRep}
                 onSaveToLibrary={() => {
                   const f = fixtures.find(x => x.id === fixture.id);
                   if (!f) return;
