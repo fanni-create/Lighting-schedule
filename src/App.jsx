@@ -536,6 +536,48 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
     </div>
     <div class="page-break"></div>`;
 
+  // Flat mode - all fixtures in one table without manufacturer grouping
+  const flatSpecSection = (() => {
+    const allRows = fixtures.map(f => {
+      const tNet = f.distributorNet ? fmtMoney(parseFloat(f.distributorNet) * parseInt(f.qty || 1)) : "—";
+      const imgCell = f.image
+        ? `<img src="${f.image}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;border:1px solid #ddd;display:block;" />`
+        : `<div style="width:48px;height:48px;border-radius:6px;border:1px dashed #ddd;"></div>`;
+      const modelLines = f.modelNumber ? f.modelNumber.split("\n").map(l => l.trim()).filter(Boolean) : [];
+      const tags = [
+        f.type && `<span class="tag">${f.type}</span>`,
+        f.isLinear && f.linearFt && `<span class="tag" style="background:#e8f0fe;border-color:#4a90e2;color:#1a5cb8;">📏 ${f.linearFt} LF</span>`,
+        f.wattage && `<span class="tag">${f.wattage}W</span>`,
+        f.colorTemp && `<span class="tag ct">${f.colorTemp}</span>`,
+        f.cri && `<span class="tag">${f.cri}</span>`,
+        f.lumens && `<span class="tag">${parseInt(f.lumens).toLocaleString()} lm</span>`,
+        f.voltage && `<span class="tag">${f.voltage}</span>`,
+      ].filter(Boolean).join("");
+      return `<tr>
+        <td style="padding:10px 8px;vertical-align:middle;">${imgCell}</td>
+        <td style="padding:10px 8px;vertical-align:top;">
+          <div style="font-weight:700;font-size:13px;color:#111;">${f.name || "Untitled"}${f.cutsheetPageImages ? ' <span class="cs-badge">📄 cutsheet</span>' : ""}</div>
+          <div style="font-size:11px;color:#888;margin-top:2px;">${f.manufacturer || ""}</div>
+          ${modelLines.map(l => `<div style="font-size:11px;color:#666;font-family:'Courier New',monospace;line-height:1.6;">${l}</div>`).join("")}
+          <div style="margin-top:4px;">${tags}</div>
+          ${f.notes ? `<div style="margin-top:4px;font-size:11px;color:#999;font-style:italic;">${f.notes}</div>` : ""}
+        </td>
+        ${showRep ? `<td style="padding:10px 8px;vertical-align:middle;font-size:12px;color:#555;">${f.rep || "—"}</td>` : ""}
+        <td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:center;">${f.qty || 1}</td>
+        ${showPricing ? `<td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:right;color:#444;">${f.distributorNet ? fmtMoney(parseFloat(f.distributorNet)) : "—"}</td>
+        <td style="padding:10px 8px;vertical-align:middle;font-size:13px;font-weight:800;text-align:right;color:#cc0000;">${tNet}</td>` : ""}
+        <td style="padding:10px 8px;vertical-align:middle;font-size:12px;text-align:center;color:#f5a623;">${f.leadTime || "—"}</td>
+      </tr>`;
+    }).join("");
+    return `<div class="mfr-section">
+      <table><thead><tr>
+        <th style="width:56px;"></th><th style="text-align:left;">Fixture / Specs</th>
+        ${showRep ? '<th>Rep</th>' : ''}<th style="text-align:center;">Qty</th>
+        ${showPricing ? '<th style="text-align:right;">Unit Net</th><th style="text-align:right;">Total Net</th>' : ''}
+        <th style="text-align:center;">Lead Time</th>
+      </tr></thead><tbody>${allRows}</tbody></table></div>`;
+  })();
+
   const specSections = grouped.map(([mfr, mfrFixtures], groupIdx) => {
     const mfrTotal = mfrFixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
     const rows = mfrFixtures.map(f => {
@@ -761,7 +803,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   ${toc}
 
   <div class="section-label">${groupBy === "rep" ? "Fixture Schedule by Rep" : "Lighting Cutsheet Package"}</div>
-  ${specSections}
+  ${groupBy === "flat" ? flatSpecSection : specSections.join("")}
   ${pageFooter}
 
   ${includeCutsheets ? cutsheetPages.join("") : ""}
@@ -1009,11 +1051,20 @@ export default function App() {
   }, [fixtures, search]);
 
   const grouped = useMemo(() => {
-    const g = {}; filtered.forEach(f => { const k = f.manufacturer || "No Manufacturer"; if (!g[k]) g[k] = []; g[k].push(f); });
+    if (groupBy === "flat") return [["ALL FIXTURES", filtered]];
+    const g = {};
+    filtered.forEach(f => {
+      const k = groupBy === "rep"
+        ? (f.rep || "NO REP ASSIGNED")
+        : (f.manufacturer || "FIXTURE SCHEDULE");
+      if (!g[k]) g[k] = [];
+      g[k].push(f);
+    });
     return Object.entries(g).sort(([a],[b]) => a.localeCompare(b));
-  }, [filtered]);
+  }, [filtered, groupBy]);
 
   const groupedAll = useMemo(() => {
+    if (groupBy === "flat") return [["ALL FIXTURES", fixtures]];
     const g = {};
     fixtures.forEach(f => {
       const k = groupBy === "rep"
@@ -1078,9 +1129,9 @@ export default function App() {
             style={{ background: "#1a1a1a", color: showRep ? "#6fba6f" : "#555", border: `1px solid ${showRep ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
             {showRep ? "👤 Hide Rep" : "👤 Show Rep"}
           </button>
-          <button onClick={() => setGroupBy(g => g === "manufacturer" ? "rep" : "manufacturer")}
-            style={{ background: "#1a1a1a", color: groupBy === "rep" ? "#f5a623" : "#555", border: `1px solid ${groupBy === "rep" ? "#6a4a00" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
-            {groupBy === "rep" ? "📋 By Rep" : "📋 By Mfr"}
+          <button onClick={() => setGroupBy(g => g === "manufacturer" ? "rep" : g === "rep" ? "flat" : "manufacturer")}
+            style={{ background: "#1a1a1a", color: groupBy !== "manufacturer" ? "#f5a623" : "#555", border: `1px solid ${groupBy !== "manufacturer" ? "#6a4a00" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
+            {groupBy === "rep" ? "📋 By Rep" : groupBy === "flat" ? "📋 Flat List" : "📋 By Mfr"}
           </button>
           <button onClick={() => { saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes }); setSaved(true); setTimeout(() => setSaved(false), 2000); }}
             style={{ background: saved ? "#1a0000" : "#1a1a1a", color: saved ? "#cc0000" : "#888", border: `1px solid ${saved ? "#4a0000" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", transition: "all 0.2s" }}>
