@@ -525,10 +525,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
           ${brand.address1 ? `<div class="cover-address">${brand.address1}</div>` : ""}
           ${brand.address2 ? `<div class="cover-address">${brand.address2}</div>` : ""}
           <div class="cover-title">LIGHTING DESIGN CUTSHEET PACKAGE</div>
-          <div class="cover-date">${today.replace(/(\w+)\s(\d+),\s(\d+)/, (_, m, d, y) => {
-            const months = {January:"01",February:"02",March:"03",April:"04",May:"05",June:"06",July:"07",August:"08",September:"09",October:"10",November:"11",December:"12"};
-            return (months[m]||"01") + "." + d.padStart(2,"0") + "." + y;
-          })}</div>
+          <div class="cover-date">${(() => { const d = new Date(); return String(d.getMonth()+1).padStart(2,"0") + "." + String(d.getDate()).padStart(2,"0") + "." + d.getFullYear(); })()}</div>
           ${brand.preparedBy ? `<div class="cover-prepared">${preparedByHtml}</div>` : ""}
           ${brand.projectNumber ? `<div class="cover-projnum">PROJECT NO: ${brand.projectNumber}</div>` : ""}
         </div>
