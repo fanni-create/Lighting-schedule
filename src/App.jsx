@@ -73,7 +73,7 @@ function FixtureThumbnail({ image, onClick }) {
 }
 
 // ─── Fixture Row ──────────────────────────────────────────────────────────────
-function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType, showPricing = true }) {
+function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manufacturers, reps, onAddManufacturer, onAddRep, fixtureTypes: fixtureTypesProp, onAddFixtureType, showPricing = true, onSaveToLibrary }) {
   const [local, setLocal] = useState(fixture);
   const imageRef = useRef(); const cutsheetRef = useRef();
 
@@ -149,6 +149,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
         <div>{local.colorTemp ? <span style={{ fontSize: "11px", color: ctColor, background: ctColor + "18", border: `1px solid ${ctColor}30`, borderRadius: "4px", padding: "2px 6px", fontFamily: "monospace" }}>{local.colorTemp}</span> : <span style={{ color: "#333", fontSize: "12px" }}>—</span>}</div>
         {showPricing && <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#333" }}>—</span>}</div>}
         {showPricing && <div style={{ fontSize: "12px", color: "#6fba6f", fontWeight: "600" }}>{totalNet}</div>}
+        {onSaveToLibrary && <button onClick={e => { e.stopPropagation(); onSaveToLibrary(); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px", padding: "0 4px", lineHeight: 1, whiteSpace: "nowrap" }} title="Save to library">📚</button>}
         <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "16px", padding: 0, lineHeight: 1 }}
           onMouseEnter={e => e.target.style.color = "#c0504d"} onMouseLeave={e => e.target.style.color = "#444"}>×</button>
       </div>
@@ -813,12 +814,15 @@ export default function App() {
   useEffect(() => { window.__brandLogo = brand.logo || null; }, [brand.logo]);
   const [exporting, setExporting] = useState(false);
   const [showPricing, setShowPricing] = useState(true);
-  const [viewMode, setViewMode] = useState("schedule"); // "schedule" | "overview"
+  const [viewMode, setViewMode] = useState("schedule"); // "schedule" | "overview" | "library"
+  const [library, setLibrary] = useState(() => stored?.library || []);
+  const [showAddToLibrary, setShowAddToLibrary] = useState(null); // fixture id
+  const [showAddFromLibrary, setShowAddFromLibrary] = useState(false);
   const dlRef = useRef();
 
   // Auto-save whenever key state changes
   useEffect(() => {
-    saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes });
+    saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library });
   }, [projects, activeProjectId, manufacturers, reps, brand]);
 
   // Active project helpers
@@ -910,6 +914,7 @@ export default function App() {
           <div style={{ display: "flex", background: "#222", borderRadius: "7px", border: "1px solid #2a2a2a", overflow: "hidden" }}>
             <button onClick={() => setViewMode("schedule")} style={{ background: viewMode === "schedule" ? "#cc0000" : "none", color: viewMode === "schedule" ? "#fff" : "#666", border: "none", padding: "6px 12px", fontSize: "11px", fontWeight: "700", cursor: "pointer", letterSpacing: "0.04em" }}>SCHEDULE</button>
             <button onClick={() => setViewMode("overview")} style={{ background: viewMode === "overview" ? "#cc0000" : "none", color: viewMode === "overview" ? "#fff" : "#666", border: "none", padding: "6px 12px", fontSize: "11px", fontWeight: "700", cursor: "pointer", letterSpacing: "0.04em" }}>OVERVIEW</button>
+            <button onClick={() => setViewMode("library")} style={{ background: viewMode === "library" ? "#cc0000" : "none", color: viewMode === "library" ? "#fff" : "#666", border: "none", padding: "6px 12px", fontSize: "11px", fontWeight: "700", cursor: "pointer", letterSpacing: "0.04em" }}>LIBRARY {library.length > 0 ? `(${library.length})` : ""}</button>
           </div>
           <button onClick={() => setShowPricing(p => !p)}
             style={{ background: "#1a1a1a", color: showPricing ? "#6fba6f" : "#555", border: `1px solid ${showPricing ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
@@ -968,6 +973,62 @@ export default function App() {
           <a ref={dlRef} style={{ display: "none" }} href="/" aria-hidden="true">download</a>
         </div>
       </div>
+
+      {/* Library tab */}
+      {viewMode === "library" && (
+        <div style={{ padding: "24px 28px 60px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
+            <div>
+              <div style={{ fontSize: "11px", color: "#cc0000", fontWeight: "700", letterSpacing: "0.12em", fontFamily: "monospace" }}>FIXTURE LIBRARY</div>
+              <div style={{ fontSize: "13px", color: "#bbb", marginTop: "3px" }}>Saved fixtures available across all projects</div>
+            </div>
+            {library.length > 0 && (
+              <button onClick={() => setShowAddFromLibrary(true)}
+                style={{ background: "#cc0000", color: "#fff", border: "none", borderRadius: "7px", padding: "8px 16px", fontWeight: "700", fontSize: "12px", cursor: "pointer" }}>
+                + Add to Current Project
+              </button>
+            )}
+          </div>
+
+          {library.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "80px 0", color: "#555" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>📚</div>
+              <p style={{ color: "#888", marginBottom: "8px" }}>Your library is empty</p>
+              <p style={{ fontSize: "12px", color: "#555" }}>Click 📚 on any fixture in the Schedule tab to save it here</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: "16px" }}>
+              {library.map(f => (
+                <div key={f.libraryId} style={{ background: "#2a2a2a", borderRadius: "10px", overflow: "hidden", border: "1px solid #3a3a3a" }}>
+                  <div style={{ width: "100%", height: "140px", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    {f.image
+                      ? <img src={f.image} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", padding: "12px" }} />
+                      : <span style={{ fontSize: "36px", opacity: 0.2 }}>💡</span>
+                    }
+                  </div>
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontWeight: "700", fontSize: "13px", color: "#e8e8e8", marginBottom: "3px" }}>{f.name || "Untitled"}</div>
+                    <div style={{ fontSize: "11px", color: "#666", marginBottom: "6px" }}>{f.manufacturer || "—"}{f.type ? ` · ${f.type}` : ""}</div>
+                    {f.modelNumber && <div style={{ fontSize: "10px", color: "#555", fontFamily: "monospace", marginBottom: "8px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.modelNumber.split("\n")[0]}</div>}
+                    <div style={{ display: "flex", gap: "6px" }}>
+                      <button onClick={() => {
+                        const newF = { ...f, id: idCounter++, libraryId: undefined };
+                        setProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, fixtures: [...p.fixtures, newF] } : p));
+                        setViewMode("schedule");
+                      }} style={{ flex: 1, background: "#cc0000", color: "#fff", border: "none", borderRadius: "6px", padding: "6px", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}>
+                        + Add to Project
+                      </button>
+                      <button onClick={() => setLibrary(prev => prev.filter(l => l.libraryId !== f.libraryId))}
+                        style={{ background: "#1a1a1a", color: "#555", border: "1px solid #333", borderRadius: "6px", padding: "6px 10px", fontSize: "12px", cursor: "pointer" }}
+                        onMouseEnter={e => e.target.style.color = "#c0504d"} onMouseLeave={e => e.target.style.color = "#555"}>×</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Overview tab */}
       {viewMode === "overview" && (
@@ -1055,7 +1116,18 @@ export default function App() {
                 isEditing={editingId===f.id} onEditToggle={() => setEditingId(editingId===f.id?null:f.id)}
                 manufacturers={manufacturers} reps={reps} onAddManufacturer={addManufacturer} onAddRep={addRep}
                 fixtureTypes={fixtureTypes} onAddFixtureType={(t) => setFixtureTypes(prev => prev.includes(t) ? prev : [...prev, t].sort())}
-                showPricing={showPricing} />
+                showPricing={showPricing}
+                onSaveToLibrary={() => {
+                  const f = fixtures.find(x => x.id === fixture.id);
+                  if (!f) return;
+                  const entry = { ...f, id: Date.now(), libraryId: Date.now() };
+                  setLibrary(prev => {
+                    const already = prev.find(l => l.name === f.name && l.modelNumber === f.modelNumber);
+                    if (already) return prev.map(l => l.libraryId === already.libraryId ? entry : l);
+                    return [...prev, entry];
+                  });
+                  setSaved(true); setTimeout(() => setSaved(false), 2000);
+                }} />
             ))}
           </div>
         ))}
