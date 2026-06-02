@@ -215,7 +215,10 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
                     </div>
                   )}
                   {convertError && !converting && (
-                    <span style={{ fontSize: "10px", color: "#cc0000" }}>⚠ {convertError}</span>
+                    <div>
+                      <span style={{ fontSize: "10px", color: "#cc0000", display: "block" }}>⚠ {convertError}</span>
+                      <button onClick={() => cutsheetRef.current?.click()} style={{ fontSize: "10px", color: "#7ab3f5", background: "none", border: "none", cursor: "pointer", padding: 0, marginTop: "4px" }}>↺ Try again</button>
+                    </div>
                   )}
                   {!local.cutsheet && !converting && (
                     <span style={{ fontSize: "10px", color: "#3a3a3a" }}>PDF · logo auto-stamped on each page</span>
