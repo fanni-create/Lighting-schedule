@@ -432,7 +432,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
-function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true, showRep = true, groupBy = "manufacturer") {
+function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true, showRep = true, groupBy = "manufacturer", includeCutsheets = true) {
   const fmtMoney = (n) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // eslint-disable-next-line no-unused-vars
   const totalNet = fixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
@@ -1057,7 +1057,7 @@ export default function App() {
                 // Export one file per rep
                 Object.entries(repGroups).forEach(([rep, repFixtures], i) => {
                   const repGrouped = { [rep]: repFixtures };
-                  const files = exportScheduleBook(repFixtures, Object.entries(repGrouped), brand, activeProject.name + " — " + rep, showPricing, showRep, "rep");
+                  const files = exportScheduleBook(repFixtures, Object.entries(repGrouped), brand, activeProject.name + " — " + rep, showPricing, showRep, "rep", false);
                   setTimeout(() => {
                     const url = URL.createObjectURL(files[0].blob);
                     const a = dlRef.current;
