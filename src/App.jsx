@@ -1182,7 +1182,7 @@ export default function App() {
                       const url = URL.createObjectURL(files[0].blob);
                       const a = dlRef.current; a.href = url; a.download = files[0].name; a.click();
                       setTimeout(() => URL.revokeObjectURL(url), 5000);
-                    } catch(e) { console.error(e); } finally { setTimeout(() => setExporting(false), 800); }
+                    } catch(e) { console.error("Export error:", e); alert("Export failed: " + e.message); } finally { setTimeout(() => setExporting(false), 800); }
                   }},
                   { label: "↓ Spec Sheet Only", desc: "No cutsheets included", action: async () => {
                     setShowExportMenu(false); setExporting(true);
