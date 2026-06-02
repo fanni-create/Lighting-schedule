@@ -432,6 +432,66 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
 }
 
 // ─── Export ───────────────────────────────────────────────────────────────────
+function exportToCSV(fixtures, projectName) {
+  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty"];
+  const rows = fixtures.map(f => [
+    f.name || "",
+    f.type || "",
+    f.manufacturer || "",
+    (f.modelNumber || "").replace(/\n/g, " | "),
+    f.wattage || "",
+    f.colorTemp || "",
+    f.cri || "",
+    f.lumens || "",
+    f.voltage || "",
+    f.qty || 1,
+  ]);
+  const csv = [headers, ...rows].map(row =>
+    row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+  ).join("\n");
+  return [{
+    blob: new Blob([csv], { type: "text/csv;charset=utf-8;" }),
+    name: (projectName || "fixture-schedule").replace(/[^a-z0-9]/gi, "-").toLowerCase() + "-revit.csv",
+  }];
+}
+
+function exportToXLSX(fixtures, projectName) {
+  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty"];
+  const rows = fixtures.map(f => [
+    f.name || "",
+    f.type || "",
+    f.manufacturer || "",
+    (f.modelNumber || "").replace(/\n/g, " | "),
+    f.wattage || "",
+    f.colorTemp || "",
+    f.cri || "",
+    f.lumens || "",
+    f.voltage || "",
+    f.qty || 1,
+  ]);
+
+  // Build XLSX XML manually (simple single-sheet workbook)
+  const xmlRows = [headers, ...rows].map((row, ri) =>
+    `<Row ss:Index="${ri + 1}">${row.map((cell, ci) => {
+      const isNum = ri > 0 && (ci === 4 || ci === 7 || ci === 9) && !isNaN(cell) && cell !== "";
+      return `<Cell><Data ss:Type="${isNum ? "Number" : "String"}">${String(cell).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}</Data></Cell>`;
+    }).join("")}</Row>`
+  ).join("");
+
+  const xml = `<?xml version="1.0"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="Fixture Schedule">
+  <Table>${xmlRows}</Table>
+ </Worksheet>
+</Workbook>`;
+
+  return [{
+    blob: new Blob([xml], { type: "application/vnd.ms-excel" }),
+    name: (projectName || "fixture-schedule").replace(/[^a-z0-9]/gi, "-").toLowerCase() + "-revit.xls",
+  }];
+}
+
 function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true, showRep = true, groupBy = "manufacturer", includeCutsheets = true) {
   const fmtMoney = (n) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // eslint-disable-next-line no-unused-vars
@@ -867,6 +927,7 @@ export default function App() {
   // Keep window.__brandLogo in sync so PDF conversion can access it
   useEffect(() => { window.__brandLogo = brand.logo || null; }, [brand.logo]);
   const [exporting, setExporting] = useState(false);
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [showPricing, setShowPricing] = useState(true);
   const [showRep, setShowRep] = useState(true);
   const [groupBy, setGroupBy] = useState("manufacturer"); // "manufacturer" | "rep"
@@ -875,6 +936,12 @@ export default function App() {
   const [showAddToLibrary, setShowAddToLibrary] = useState(null); // fixture id
   const [showAddFromLibrary, setShowAddFromLibrary] = useState(false);
   const dlRef = useRef();
+  const exportMenuRef = useRef();
+  useEffect(() => {
+    const handleClick = (e) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setShowExportMenu(false); };
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   // Auto-save whenever key state changes
   useEffect(() => {
@@ -1023,61 +1090,81 @@ export default function App() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search fixtures…"
             style={{ ...inputStyle, width: "150px", margin: 0, fontSize: "12px", padding: "6px 10px" }} />
           <button onClick={addFixture} style={addBtnStyle}>+ Add Fixture</button>
-          <button
-            onClick={() => {
-              if (!fixtures.length || exporting) return;
-              setExporting(true);
-              try {
-                const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name, showPricing, showRep, groupBy);
-                const file = files[0];
-                const url = URL.createObjectURL(file.blob);
-                const a = dlRef.current;
-                a.href = url; a.download = file.name; a.click();
-                setTimeout(() => URL.revokeObjectURL(url), 5000);
-              } catch(e) { console.error(e); }
-              finally { setTimeout(() => setExporting(false), 800); }
-            }}
-            disabled={fixtures.length === 0 || exporting}
-            style={{ background: fixtures.length > 0 && !exporting ? "#1a0000" : "#141414", color: fixtures.length > 0 && !exporting ? "#cc0000" : "#444", border: `1px solid ${fixtures.length > 0 && !exporting ? "#4a0000" : "#222"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: fixtures.length > 0 && !exporting ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: exporting ? 0.6 : 1 }}>
-            {exporting ? "⏳ Exporting…" : "↓ Export Cutsheet Package"}
-          </button>
-          <button
-            disabled={fixtures.length === 0 || exporting}
-            onClick={async () => {
-              setExporting(true);
-              try {
-                // Group fixtures by rep
-                const repGroups = {};
-                fixtures.forEach(f => {
-                  const key = f.rep || "NO REP ASSIGNED";
-                  if (!repGroups[key]) repGroups[key] = [];
-                  repGroups[key].push(f);
-                });
-
-                // Export one file per rep
-                Object.entries(repGroups).forEach(([rep, repFixtures], i) => {
-                  const repGrouped = { [rep]: repFixtures };
-                  const files = exportScheduleBook(repFixtures, Object.entries(repGrouped), brand, activeProject.name + " — " + rep, showPricing, showRep, "rep", false);
-                  setTimeout(() => {
-                    const url = URL.createObjectURL(files[0].blob);
-                    const a = dlRef.current;
-                    const safeName = rep.replace(/[^a-z0-9]/gi, "-").toLowerCase();
-                    a.href = url;
-                    a.download = "cutsheet-" + safeName + ".html";
-                    a.click();
-                    setTimeout(() => URL.revokeObjectURL(url), 5000);
-                  }, i * 800);
-                });
-
-                setTimeout(() => setExporting(false), Object.keys(repGroups).length * 800 + 500);
-              } catch(e) {
-                console.error(e);
-                setExporting(false);
-              }
-            }}
-            style={{ background: fixtures.length > 0 && !exporting ? "#1a1500" : "#141414", color: fixtures.length > 0 && !exporting ? "#f5a623" : "#444", border: `1px solid ${fixtures.length > 0 && !exporting ? "#4a3a00" : "#222"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: fixtures.length > 0 && !exporting ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: exporting ? 0.6 : 1 }}>
-            👤 Export by Rep
-          </button>
+          <div ref={exportMenuRef} style={{ position: "relative" }}>
+            <button
+              disabled={fixtures.length === 0 || exporting}
+              onClick={() => setShowExportMenu(m => !m)}
+              style={{ background: fixtures.length > 0 && !exporting ? "#1a0000" : "#141414", color: fixtures.length > 0 && !exporting ? "#cc0000" : "#444", border: `1px solid ${fixtures.length > 0 && !exporting ? "#4a0000" : "#222"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: fixtures.length > 0 && !exporting ? "pointer" : "not-allowed", whiteSpace: "nowrap", opacity: exporting ? 0.6 : 1 }}>
+              {exporting ? "⏳ Exporting…" : "↓ Export ▾"}
+            </button>
+            {showExportMenu && !exporting && fixtures.length > 0 && (
+              <div style={{ position: "absolute", right: 0, top: "calc(100% + 6px)", background: "#1a1a1a", border: "1px solid #333", borderRadius: "8px", overflow: "hidden", zIndex: 100, minWidth: "230px", boxShadow: "0 8px 24px rgba(0,0,0,0.5)" }}>
+                {[
+                  { label: "↓ Cutsheet Package", desc: "Full package with cutsheets", action: async () => {
+                    setShowExportMenu(false); setExporting(true);
+                    try {
+                      const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name, showPricing, showRep, groupBy, true);
+                      const url = URL.createObjectURL(files[0].blob);
+                      const a = dlRef.current; a.href = url; a.download = files[0].name; a.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    } catch(e) { console.error(e); } finally { setTimeout(() => setExporting(false), 800); }
+                  }},
+                  { label: "↓ Spec Sheet Only", desc: "No cutsheets included", action: async () => {
+                    setShowExportMenu(false); setExporting(true);
+                    try {
+                      const files = exportScheduleBook(fixtures, groupedAll, brand, activeProject.name, showPricing, showRep, groupBy, false);
+                      const url = URL.createObjectURL(files[0].blob);
+                      const a = dlRef.current; a.href = url; a.download = files[0].name; a.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    } catch(e) { console.error(e); } finally { setTimeout(() => setExporting(false), 800); }
+                  }},
+                  { label: "📊 Export to CSV (Revit)", desc: "Fixture schedule as CSV", action: async () => {
+                    setShowExportMenu(false); setExporting(true);
+                    try {
+                      const files = exportToCSV(fixtures, activeProject.name);
+                      const url = URL.createObjectURL(files[0].blob);
+                      const a = dlRef.current; a.href = url; a.download = files[0].name; a.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    } catch(e) { console.error(e); } finally { setTimeout(() => setExporting(false), 800); }
+                  }},
+                  { label: "📊 Export to Excel (Revit)", desc: "Fixture schedule as XLS", action: async () => {
+                    setShowExportMenu(false); setExporting(true);
+                    try {
+                      const files = exportToXLSX(fixtures, activeProject.name);
+                      const url = URL.createObjectURL(files[0].blob);
+                      const a = dlRef.current; a.href = url; a.download = files[0].name; a.click();
+                      setTimeout(() => URL.revokeObjectURL(url), 5000);
+                    } catch(e) { console.error(e); } finally { setTimeout(() => setExporting(false), 800); }
+                  }},
+                  { label: "👤 Export by Rep", desc: "One file per rep, spec sheet only", action: async () => {
+                    setShowExportMenu(false); setExporting(true);
+                    try {
+                      const repGroups = {};
+                      fixtures.forEach(f => { const k = f.rep || "NO REP ASSIGNED"; if (!repGroups[k]) repGroups[k] = []; repGroups[k].push(f); });
+                      Object.entries(repGroups).forEach(([rep, repFixtures], i) => {
+                        const files = exportScheduleBook(repFixtures, [[rep, repFixtures]], brand, activeProject.name + " — " + rep, showPricing, showRep, "rep", false);
+                        setTimeout(() => {
+                          const url = URL.createObjectURL(files[0].blob);
+                          const a = dlRef.current; a.href = url;
+                          a.download = "spec-" + rep.replace(/[^a-z0-9]/gi, "-").toLowerCase() + ".html"; a.click();
+                          setTimeout(() => URL.revokeObjectURL(url), 5000);
+                        }, i * 800);
+                      });
+                      setTimeout(() => setExporting(false), Object.keys(repGroups).length * 800 + 500);
+                    } catch(e) { console.error(e); setExporting(false); }
+                  }},
+                ].map(({ label, desc, action }) => (
+                  <button key={label} onClick={action}
+                    style={{ width: "100%", background: "none", border: "none", borderBottom: "1px solid #2a2a2a", padding: "10px 14px", color: "#ddd", fontSize: "12px", cursor: "pointer", textAlign: "left", display: "flex", flexDirection: "column", gap: "2px" }}
+                    onMouseEnter={e => e.currentTarget.style.background = "#2a2a2a"}
+                    onMouseLeave={e => e.currentTarget.style.background = "none"}>
+                    <span style={{ fontWeight: "700" }}>{label}</span>
+                    <span style={{ fontSize: "10px", color: "#666" }}>{desc}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
           <a ref={dlRef} style={{ display: "none" }} href="/" aria-hidden="true">download</a>
         </div>
       </div>
