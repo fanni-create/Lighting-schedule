@@ -813,6 +813,7 @@ export default function App() {
   useEffect(() => { window.__brandLogo = brand.logo || null; }, [brand.logo]);
   const [exporting, setExporting] = useState(false);
   const [showPricing, setShowPricing] = useState(true);
+  const [viewMode, setViewMode] = useState("schedule"); // "schedule" | "overview"
   const dlRef = useRef();
 
   // Auto-save whenever key state changes
@@ -906,6 +907,10 @@ export default function App() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
 
           <button onClick={() => setShowSettings(true)} style={{ background: "#3a3a3a", border: "1px solid #2a2a2a", borderRadius: "7px", padding: "7px 11px", color: "#888", fontSize: "13px", cursor: "pointer" }} title="Settings">⚙︎</button>
+          <div style={{ display: "flex", background: "#222", borderRadius: "7px", border: "1px solid #2a2a2a", overflow: "hidden" }}>
+            <button onClick={() => setViewMode("schedule")} style={{ background: viewMode === "schedule" ? "#cc0000" : "none", color: viewMode === "schedule" ? "#fff" : "#666", border: "none", padding: "6px 12px", fontSize: "11px", fontWeight: "700", cursor: "pointer", letterSpacing: "0.04em" }}>SCHEDULE</button>
+            <button onClick={() => setViewMode("overview")} style={{ background: viewMode === "overview" ? "#cc0000" : "none", color: viewMode === "overview" ? "#fff" : "#666", border: "none", padding: "6px 12px", fontSize: "11px", fontWeight: "700", cursor: "pointer", letterSpacing: "0.04em" }}>OVERVIEW</button>
+          </div>
           <button onClick={() => setShowPricing(p => !p)}
             style={{ background: "#1a1a1a", color: showPricing ? "#6fba6f" : "#555", border: `1px solid ${showPricing ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
             {showPricing ? "$ Hide Pricing" : "$ Show Pricing"}
@@ -964,10 +969,65 @@ export default function App() {
         </div>
       </div>
 
+      {/* Overview tab */}
+      {viewMode === "overview" && (
+        <div style={{ padding: "24px 28px 60px" }}>
+          {fixtures.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "80px 0", color: "#ccc" }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }}>🖼</div>
+              <p>No fixtures yet — add some in the Schedule tab</p>
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "16px" }}>
+              {fixtures.map(f => (
+                <div key={f.id} style={{ background: "#2a2a2a", borderRadius: "10px", overflow: "hidden", border: "1px solid #3a3a3a" }}>
+                  {/* Fixture image */}
+                  <div style={{ width: "100%", height: "160px", background: "#1a1a1a", display: "flex", alignItems: "center", justifyContent: "center", position: "relative" }}>
+                    {f.image
+                      ? <img src={f.image} alt={f.name} style={{ width: "100%", height: "100%", objectFit: "contain", padding: "12px" }} />
+                      : <span style={{ fontSize: "40px", opacity: 0.2 }}>📷</span>
+                    }
+                    {/* Cutsheet badge */}
+                    <div style={{ position: "absolute", top: "8px", right: "8px" }}>
+                      {f.cutsheetPageImages
+                        ? <span style={{ background: "#1a4a1a", color: "#6fba6f", fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", border: "1px solid #2a6a2a" }}>✓ {f.cutsheetPageImages.length}p</span>
+                        : f.cutsheet
+                        ? <span style={{ background: "#4a3a00", color: "#f5a623", fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", border: "1px solid #6a5a00" }}>⚠ PDF</span>
+                        : <span style={{ background: "#2a2a2a", color: "#555", fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", border: "1px solid #3a3a3a" }}>no cutsheet</span>
+                      }
+                    </div>
+                    {/* Image badge */}
+                    {!f.image && (
+                      <div style={{ position: "absolute", bottom: "8px", left: "8px" }}>
+                        <span style={{ background: "#3a1a1a", color: "#c0504d", fontSize: "9px", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", border: "1px solid #5a2a2a" }}>no image</span>
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div style={{ padding: "10px 12px" }}>
+                    <div style={{ fontWeight: "700", fontSize: "13px", color: "#e8e8e8", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name || "Untitled fixture"}</div>
+                    <div style={{ fontSize: "11px", color: "#666", marginBottom: "6px" }}>{f.manufacturer || "—"} {f.type ? `· ${f.type}` : ""}</div>
+                    {f.modelNumber && <div style={{ fontSize: "10px", color: "#555", fontFamily: "monospace", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.modelNumber.split("\n")[0]}</div>}
+                    <div style={{ display: "flex", gap: "6px", marginTop: "8px", flexWrap: "wrap" }}>
+                      {f.wattage && <span style={{ fontSize: "10px", background: "#1a1a1a", color: "#aaa", padding: "2px 6px", borderRadius: "3px" }}>{f.wattage}W</span>}
+                      {f.colorTemp && <span style={{ fontSize: "10px", background: "#1a1a1a", color: "#aaa", padding: "2px 6px", borderRadius: "3px" }}>{f.colorTemp}</span>}
+                      {f.qty > 1 && <span style={{ fontSize: "10px", background: "#1a1a1a", color: "#aaa", padding: "2px 6px", borderRadius: "3px" }}>×{f.qty}</span>}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Schedule view */}
+      {viewMode === "schedule" && (<>
+
       {/* Column headers */}
       {fixtures.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "48px 2fr 1fr 90px 80px 90px 100px 44px", padding: "10px 28px 6px", borderBottom: "1px solid #161616" }}>
-          {["","Fixture / Model","Rep","Wattage","Color Temp","Dist. Net","Total Net",""].map((h,i) => (
+        <div style={{ display: "grid", gridTemplateColumns: showPricing ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 1fr 90px 80px 44px", padding: "10px 28px 6px", borderBottom: "1px solid #161616" }}>
+          {(showPricing ? ["","Fixture / Model","Rep","Wattage","Color Temp","Dist. Net","Total Net",""] : ["","Fixture / Model","Rep","Wattage","Color Temp",""]).map((h,i) => (
             <span key={i} style={{ fontSize: "10px", color: "#e0e0e0", letterSpacing: "0.08em", fontFamily: "monospace", paddingLeft: i===1?"12px":0, fontWeight: "700" }}>{h.toUpperCase()}</span>
           ))}
         </div>
@@ -1001,6 +1061,7 @@ export default function App() {
         ))}
       </div>
     </div>
+    </>)}
   );
 }
 
