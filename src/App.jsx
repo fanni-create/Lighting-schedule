@@ -152,20 +152,20 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
               : (showRep ? "48px 2fr 1fr 90px 80px 44px" : "48px 2fr 90px 80px 44px"), alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
         <FixtureThumbnail image={local.image} onClick={() => imageRef.current?.click()} />
         <div style={{ paddingLeft: "12px" }}>
-          <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#444", display: "flex", alignItems: "center", gap: "8px" }}>
+          <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#888", display: "flex", alignItems: "center", gap: "8px" }}>
             {local.name || <em style={{ color: "#444", fontWeight: 400 }}>Untitled fixture</em>}
           </div>
-          <div style={{ fontSize: "11px", color: "#555", marginTop: "2px", display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ fontSize: "11px", color: "#aaa", marginTop: "2px", display: "flex", gap: "8px", alignItems: "center" }}>
             {local.type && <span>{local.type}</span>}
-            {local.modelNumber && <span style={{ color: "#444" }}>{local.modelNumber.split("\n")[0]}{local.modelNumber.includes("\n") ? " …" : ""}</span>}
+            {local.modelNumber && <span style={{ color: "#888" }}>{local.modelNumber.split("\n")[0]}{local.modelNumber.includes("\n") ? " …" : ""}</span>}
             {local.isLinear && local.linearFt && <span style={{ color: "#7ab3f5", fontSize: "10px" }}>📏 {local.linearFt} LF</span>}
             {local.cutsheet && <span style={{ color: "#7ab3f5", fontSize: "10px" }}>📄 cutsheet</span>}
           </div>
         </div>
-        <div style={{ fontSize: "12px", color: "#666" }}>{local.rep || <span style={{ color: "#333" }}>—</span>}</div>
-        <div>{local.wattage ? <span style={{ fontSize: "12px", color: "#c0d4ff" }}>{local.wattage}W</span> : <span style={{ color: "#333", fontSize: "12px" }}>—</span>}</div>
-        <div>{local.colorTemp ? <span style={{ fontSize: "11px", color: ctColor, background: ctColor + "18", border: `1px solid ${ctColor}30`, borderRadius: "4px", padding: "2px 6px", fontFamily: "monospace" }}>{local.colorTemp}</span> : <span style={{ color: "#333", fontSize: "12px" }}>—</span>}</div>
-        {showPricing && <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#333" }}>—</span>}</div>}
+        <div style={{ fontSize: "12px", color: "#aaa" }}>{local.rep || <span style={{ color: "#555" }}>—</span>}</div>
+        <div>{local.wattage ? <span style={{ fontSize: "12px", color: "#c0d4ff" }}>{local.wattage}W</span> : <span style={{ color: "#555", fontSize: "12px" }}>—</span>}</div>
+        <div>{local.colorTemp ? <span style={{ fontSize: "11px", color: ctColor, background: ctColor + "18", border: `1px solid ${ctColor}30`, borderRadius: "4px", padding: "2px 6px", fontFamily: "monospace" }}>{local.colorTemp}</span> : <span style={{ color: "#555", fontSize: "12px" }}>—</span>}</div>
+        {showPricing && <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#555" }}>—</span>}</div>}
         {showPricing && <div style={{ fontSize: "12px", color: "#6fba6f", fontWeight: "600" }}>{totalNet}</div>}
         {onSaveToLibrary && <button onClick={e => { e.stopPropagation(); onSaveToLibrary(); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px", padding: "0 4px", lineHeight: 1, whiteSpace: "nowrap" }} title="Save to library">📚</button>}
         <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "16px", padding: 0, lineHeight: 1 }}
@@ -184,7 +184,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <button onClick={() => imageRef.current?.click()} style={{ background: "#555", border: "1px solid #666", borderRadius: "7px", padding: "6px 12px", color: "#fff", fontSize: "12px", cursor: "pointer" }}>{local.image ? "Change" : "Upload Image"}</button>
-                  {local.image && <button onClick={() => set("image", null)} style={{ background: "none", border: "none", color: "#555", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove</button>}
+                  {local.image && <button onClick={() => set("image", null)} style={{ background: "none", border: "none", color: "#aaa", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove</button>}
                   <span style={{ fontSize: "10px", color: "#3a3a3a" }}>PNG, JPG, WebP</span>
                 </div>
               </div>
@@ -235,7 +235,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
                   )}
                   {local.cutsheet && (
                     <button onClick={() => { set("cutsheet", null); set("cutsheetName", ""); set("cutsheetPageImages", null); setConvertError(null); }}
-                      style={{ background: "none", border: "none", color: "#555", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove</button>
+                      style={{ background: "none", border: "none", color: "#aaa", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove</button>
                   )}
                 </div>
               </div>
@@ -365,7 +365,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
                 <button onClick={() => logoRef.current?.click()} style={{ background: "#1e1e1e", border: "1px solid #2e2e2e", borderRadius: "7px", padding: "7px 14px", color: "#ccc", fontSize: "12px", cursor: "pointer" }}>
                   {brand.logo ? "Replace Logo" : "Upload Logo"}
                 </button>
-                {brand.logo && <button onClick={() => onBrandChange({ ...brand, logo: null, logoName: "" })} style={{ background: "none", border: "none", color: "#555", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove logo</button>}
+                {brand.logo && <button onClick={() => onBrandChange({ ...brand, logo: null, logoName: "" })} style={{ background: "none", border: "none", color: "#aaa", fontSize: "11px", cursor: "pointer", padding: 0 }}>Remove logo</button>}
                 <span style={{ fontSize: "10px", color: "#3a3a3a" }}>PNG, JPG, SVG · appears on every exported page</span>
               </div>
             </div>
