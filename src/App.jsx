@@ -30,6 +30,7 @@ const emptyFixture = () => ({
   lumens: "", distributorNet: "", qty: 1, notes: "", image: null,
   cutsheet: null, cutsheetName: "", cutsheetPageImages: null,
   isLinear: false, linearFt: "",
+  leadTime: "",
 });
 
 // ─── Managed Select ───────────────────────────────────────────────────────────
@@ -148,8 +149,8 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
       <input ref={cutsheetRef} type="file" accept="application/pdf" onChange={handlePDF} style={{ display: "none" }} />
 
       <div style={{ display: "grid", gridTemplateColumns: showPricing
-              ? (showRep ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 90px 80px 90px 100px 44px")
-              : (showRep ? "48px 2fr 1fr 90px 80px 44px" : "48px 2fr 90px 80px 44px"), alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
+              ? (showRep ? "48px 2fr 1fr 90px 80px 90px 100px 100px 44px" : "48px 2fr 90px 80px 90px 100px 100px 44px")
+              : (showRep ? "48px 2fr 1fr 90px 80px 100px 44px" : "48px 2fr 90px 80px 100px 44px"), alignItems: "center", padding: "10px 16px", cursor: "pointer" }} onClick={onEditToggle}>
         <FixtureThumbnail image={local.image} onClick={() => imageRef.current?.click()} />
         <div style={{ paddingLeft: "12px" }}>
           <div style={{ fontWeight: "600", fontSize: "13px", color: local.name ? "#e8e8e8" : "#888", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -163,10 +164,11 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
           </div>
         </div>
         <div style={{ fontSize: "12px", color: "#aaa" }}>{local.rep || <span style={{ color: "#555" }}>—</span>}</div>
-        <div>{local.wattage ? <span style={{ fontSize: "12px", color: "#c0d4ff" }}>{local.wattage}W</span> : <span style={{ color: "#555", fontSize: "12px" }}>—</span>}</div>
-        <div>{local.colorTemp ? <span style={{ fontSize: "11px", color: ctColor, background: ctColor + "18", border: `1px solid ${ctColor}30`, borderRadius: "4px", padding: "2px 6px", fontFamily: "monospace" }}>{local.colorTemp}</span> : <span style={{ color: "#555", fontSize: "12px" }}>—</span>}</div>
+        <div>{local.wattage ? <span style={{ fontSize: "12px", color: "#aaa" }}>{local.wattage}W</span> : <span style={{ color: "#555", fontSize: "12px" }}>—</span>}</div>
+        <div>{local.colorTemp ? <span style={{ fontSize: "12px", color: "#aaa" }}>{local.colorTemp}</span> : <span style={{ color: "#555", fontSize: "12px" }}>—</span>}</div>
         {showPricing && <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#555" }}>—</span>}</div>}
         {showPricing && <div style={{ fontSize: "12px", color: "#6fba6f", fontWeight: "600" }}>{totalNet}</div>}
+        <div style={{ fontSize: "12px", color: local.leadTime ? "#f5a623" : "#555" }}>{local.leadTime || <span style={{ color: "#555" }}>—</span>}</div>
         {onSaveToLibrary && <button onClick={e => { e.stopPropagation(); onSaveToLibrary(); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px", padding: "0 4px", lineHeight: 1, whiteSpace: "nowrap" }} title="Save to library">📚</button>}
         <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "16px", padding: 0, lineHeight: 1 }}
           onMouseEnter={e => e.target.style.color = "#c0504d"} onMouseLeave={e => e.target.style.color = "#444"}>×</button>
@@ -261,6 +263,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
             <Field label="Voltage" value={local.voltage} onChange={v => set("voltage", v)} placeholder="e.g. 120-277V" />
             <Field label="Distributor Net ($)" value={local.distributorNet} onChange={v => set("distributorNet", v)} placeholder="e.g. 84.50" type="number" />
             <Field label="Qty" value={local.qty} onChange={v => set("qty", v)} placeholder="1" type="number" />
+            <Field label="Lead Time" value={local.leadTime || ""} onChange={v => set("leadTime", v)} placeholder="e.g. 8-10 weeks" />
             <div style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: "16px", padding: "10px 12px", background: "#fff", borderRadius: "7px", border: "1px solid #ddd" }}>
               <label style={{ display: "flex", alignItems: "center", gap: "8px", cursor: "pointer", userSelect: "none" }}>
                 <div onClick={() => set("isLinear", !local.isLinear)} style={{ width: "36px", height: "20px", borderRadius: "10px", background: local.isLinear ? "#cc0000" : "#ccc", position: "relative", cursor: "pointer", transition: "background 0.2s", flexShrink: 0 }}>
@@ -433,7 +436,7 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 function exportToCSV(fixtures, projectName) {
-  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty"];
+  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty","Lead Time"];
   const rows = fixtures.map(f => [
     f.name || "",
     f.type || "",
@@ -445,6 +448,7 @@ function exportToCSV(fixtures, projectName) {
     f.lumens || "",
     f.voltage || "",
     f.qty || 1,
+    f.leadTime || "",
   ]);
   const csv = [headers, ...rows].map(row =>
     row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")
@@ -456,7 +460,7 @@ function exportToCSV(fixtures, projectName) {
 }
 
 function exportToXLSX(fixtures, projectName) {
-  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty"];
+  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty","Lead Time"];
   const rows = fixtures.map(f => [
     f.name || "",
     f.type || "",
@@ -468,6 +472,7 @@ function exportToXLSX(fixtures, projectName) {
     f.lumens || "",
     f.voltage || "",
     f.qty || 1,
+    f.leadTime || "",
   ]);
 
   // Build XLSX XML manually (simple single-sheet workbook)
@@ -576,6 +581,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
         <th style="width:56px;"></th><th style="text-align:left;">Fixture / Specs</th>
         ${showRep ? '<th>Rep</th>' : ''}<th style="text-align:center;">Qty</th>
         ${showPricing ? '<th style="text-align:right;">Unit Net</th><th style="text-align:right;">Total Net</th>' : ''}
+        <th style="text-align:center;">Lead Time</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join("");
 
@@ -1280,17 +1286,7 @@ export default function App() {
       {/* Schedule view */}
       {viewMode === "schedule" && (<>
 
-      {/* Column headers */}
-      {fixtures.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: showPricing ? "48px 2fr 1fr 90px 80px 90px 100px 44px" : "48px 2fr 1fr 90px 80px 44px", padding: "10px 28px 6px", borderBottom: "1px solid #161616" }}>
-          {(showPricing
-            ? (showRep ? ["","Fixture / Model","Rep","Wattage","Color Temp","Dist. Net","Total Net",""] : ["","Fixture / Model","Wattage","Color Temp","Dist. Net","Total Net",""])
-            : (showRep ? ["","Fixture / Model","Rep","Wattage","Color Temp",""] : ["","Fixture / Model","Wattage","Color Temp",""])
-          ).map((h,i) => (
-            <span key={i} style={{ fontSize: "10px", color: "#e0e0e0", letterSpacing: "0.08em", fontFamily: "monospace", paddingLeft: i===1?"12px":0, fontWeight: "700" }}>{h.toUpperCase()}</span>
-          ))}
-        </div>
-      )}
+
 
       {/* Fixture list */}
       <div style={{ padding: "16px 28px 60px" }}>
