@@ -3,7 +3,7 @@
   "outputDirectory": "build",
   "functions": {
     "api/convert-pdf.py": {
-      "maxDuration": 60,
+      "maxDuration": 120,
       "memory": 3008
     }
   },
