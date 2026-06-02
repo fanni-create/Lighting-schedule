@@ -548,7 +548,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
       <div class="cs-header-bar">
         ${logoHtml ? `<div class="cs-logo">${logoHtml}</div>` : ""}
         <div class="cs-meta">
-          <span class="cs-num-lg">CS ${num}</span>
+
           <span class="cs-name-lg">${f.name || "Untitled"}</span>
           ${modelLines.length ? `<span class="cs-model-lg">${modelLines[0]}</span>` : ""}
         </div>
