@@ -290,7 +290,20 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
   const handleLogo = (e) => {
     const f = e.target.files?.[0]; if (!f) return;
     const r = new FileReader();
-    r.onload = ev => onBrandChange({ ...brand, logo: ev.target.result, logoName: f.name });
+    r.onload = ev => {
+      // Compress logo to max 200px height to keep localStorage small
+      const img = new window.Image();
+      img.onload = () => {
+        const maxH = 200;
+        const scale = img.height > maxH ? maxH / img.height : 1;
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+        onBrandChange({ ...brand, logo: canvas.toDataURL("image/png", 0.85), logoName: f.name });
+      };
+      img.src = ev.target.result;
+    };
     r.readAsDataURL(f);
   };
 
@@ -368,9 +381,10 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
         )}
 
         {tab === "lists" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "28px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "28px" }}>
             {[["MANUFACTURERS", newMfr, setNewMfr, manufacturers, onAddManufacturer, onRemoveManufacturer],
-              ["REPS", newRep, setNewRep, reps, onAddRep, onRemoveRep]].map(([title, val, setVal, list, onAdd, onRemove]) => (
+              ["REPS", newRep, setNewRep, reps, onAddRep, onRemoveRep],
+              ["FIXTURE TYPES", newFtype, setNewFtype, fixtureTypesList, onAddFixtureTypeSettings, onRemoveFixtureTypeSettings]].map(([title, val, setVal, list, onAdd, onRemove]) => (
               <div key={title}>
                 <label style={{ ...labelStyle, color: "#cc0000", marginBottom: "10px" }}>{title}</label>
                 <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
@@ -714,26 +728,59 @@ function ProjectTabs({ projects, activeId, onSelect, onAdd, onRename, onDelete }
 // ─── localStorage helpers ─────────────────────────────────────────────────────
 const STORAGE_KEY = "fixture-schedule-v1";
 
+function saveToStorage(data) {
+  try {
+    // Store logo separately to avoid hitting size limits
+    const { brand, ...rest } = data;
+    const { logo, ...brandWithoutLogo } = brand || {};
+
+    // Save main data without logo
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...rest, brand: brandWithoutLogo }));
+
+    // Save logo separately
+    if (logo) {
+      try {
+        localStorage.setItem(STORAGE_KEY + "_logo", logo);
+      } catch (e) {
+        console.warn("Logo too large for localStorage:", e);
+      }
+    } else {
+      localStorage.removeItem(STORAGE_KEY + "_logo");
+    }
+  } catch (e) {
+    console.warn("localStorage save failed:", e);
+    // Try saving without fixtures images as fallback
+    try {
+      const stripped = {
+        ...data,
+        projects: data.projects?.map(p => ({
+          ...p,
+          fixtures: p.fixtures?.map(f => ({ ...f, image: null, cutsheetPageImages: null }))
+        }))
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stripped));
+    } catch (e2) {
+      console.warn("localStorage fallback also failed:", e2);
+    }
+  }
+}
+
 function loadFromStorage() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw);
-    // Restore projIdCounter so new projects don't clash
     if (data.projects && data.projects.length > 0) {
       projIdCounter = Math.max(...data.projects.map(p => p.id)) + 1;
+    }
+    // Restore logo from separate key
+    const logo = localStorage.getItem(STORAGE_KEY + "_logo");
+    if (logo && data.brand) {
+      data.brand.logo = logo;
     }
     return data;
   } catch (e) {
     return null;
-  }
-}
-
-function saveToStorage(data) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  } catch (e) {
-    console.warn("localStorage save failed:", e);
   }
 }
 
@@ -755,7 +802,15 @@ export default function App() {
   const [manufacturers, setManufacturers] = useState(() => stored?.manufacturers || [...DEFAULT_MANUFACTURERS]);
   const [reps, setReps] = useState(() => stored?.reps || [...DEFAULT_REPS]);
   const [fixtureTypes, setFixtureTypes] = useState(() => stored?.fixtureTypes || [...FIXTURE_TYPES]);
-  const [brand, setBrand] = useState(() => stored?.brand || { logo: null, logoName: "", name: "" });
+  const [brand, setBrand] = useState(() => {
+    const saved = stored?.brand;
+    if (saved?.logo) return saved;
+    // Default to public logo if available
+    return { logo: "/logo.jpg", logoName: "logo.jpg", name: saved?.name || "" };
+  });
+
+  // Keep window.__brandLogo in sync so PDF conversion can access it
+  useEffect(() => { window.__brandLogo = brand.logo || null; }, [brand.logo]);
   const [exporting, setExporting] = useState(false);
   const [showPricing, setShowPricing] = useState(true);
   const dlRef = useRef();
