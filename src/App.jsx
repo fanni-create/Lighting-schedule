@@ -439,8 +439,9 @@ function SettingsModal({ manufacturers, reps, onAddManufacturer, onAddRep, onRem
 
 // ─── Export ───────────────────────────────────────────────────────────────────
 function exportToCSV(fixtures, projectName) {
-  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty","Lead Time"];
+  const headers = ["Image", "Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty","Lead Time"];
   const rows = fixtures.map(f => [
+    f.image ? "Yes" : "No",
     f.name || "",
     f.type || "",
     f.manufacturer || "",
@@ -463,8 +464,9 @@ function exportToCSV(fixtures, projectName) {
 }
 
 function exportToXLSX(fixtures, projectName) {
-  const headers = ["Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty","Lead Time"];
+  const headers = ["Has Image","Fixture Name","Type","Manufacturer","Model Number","Wattage","Color Temp","CRI","Lumens","Voltage","Qty","Lead Time"];
   const rows = fixtures.map(f => [
+    f.image ? "Yes" : "No",
     f.name || "",
     f.type || "",
     f.manufacturer || "",
@@ -574,10 +576,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
     ${groupBy === "rep" ? `<div class="rep-header"><span class="rep-label">REP:</span> <span class="rep-name">${mfr}</span></div>` : ''}
     <div class="mfr-section">
       <div class="mfr-header">
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <span class="mfr-name">${mfr}</span>
-          <div style="display:flex;flex-wrap:wrap;align-items:center;">${fixtureTags}</div>
-        </div>
+        <span class="mfr-name">${mfr}</span>
         <span class="mfr-stats">${mfrFixtures.length} fixture${mfrFixtures.length !== 1 ? "s" : ""}${showPricing ? " · " + fmtMoney(mfrTotal) : ""}</span>
       </div>
       <table><thead><tr>
@@ -765,7 +764,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   ${specSections}
   ${pageFooter}
 
-  ${cutsheetPages}
+  ${includeCutsheets ? cutsheetPages.join("") : ""}
 
   <div class="no-print" class="no-print">
     <button onclick="window.print()" style="background:#cc0000;color:#fff;border:none;border-radius:8px;padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Montserrat',Arial,sans-serif;">🖨 Print / Save as PDF</button>
@@ -846,12 +845,21 @@ const STORAGE_KEY = "fixture-schedule-v1";
 
 function saveToStorage(data) {
   try {
-    // Store logo separately to avoid hitting size limits
-    const { brand, ...rest } = data;
+    // Store logo and library separately to avoid hitting size limits
+    const { brand, library, ...rest } = data;
     const { logo, ...brandWithoutLogo } = brand || {};
 
-    // Save main data without logo
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...rest, brand: brandWithoutLogo }));
+    // Save main data without logo and library images
+    const libraryStripped = (library || []).map(f => ({ ...f, image: null, cutsheetPageImages: null }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...rest, brand: brandWithoutLogo, library: libraryStripped }));
+
+    // Save library with images separately
+    try {
+      localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(library || []));
+    } catch(e) {
+      console.warn("Library too large, saving without images");
+      localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(libraryStripped));
+    }
 
     // Save logo separately
     if (logo) {
@@ -894,6 +902,13 @@ function loadFromStorage() {
     if (logo && data.brand) {
       data.brand.logo = logo;
     }
+    // Restore library with images from separate key
+    try {
+      const libraryRaw = localStorage.getItem(STORAGE_KEY + "_library");
+      if (libraryRaw) {
+        data.library = JSON.parse(libraryRaw);
+      }
+    } catch(e) {}
     return data;
   } catch (e) {
     return null;
