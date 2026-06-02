@@ -169,9 +169,12 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
         {showPricing && <div style={{ fontSize: "12px", color: "#aaa" }}>{local.distributorNet ? `$${parseFloat(local.distributorNet).toFixed(2)}` : <span style={{ color: "#555" }}>—</span>}</div>}
         {showPricing && <div style={{ fontSize: "12px", color: "#6fba6f", fontWeight: "600" }}>{totalNet}</div>}
         <div style={{ fontSize: "12px", color: local.leadTime ? "#f5a623" : "#555" }}>{local.leadTime || <span style={{ color: "#555" }}>—</span>}</div>
-        {onSaveToLibrary && <button onClick={e => { e.stopPropagation(); onSaveToLibrary(); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px", padding: "0 4px", lineHeight: 1, whiteSpace: "nowrap" }} title="Save to library">📚</button>}
-        <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ background: "none", border: "none", color: "#444", cursor: "pointer", fontSize: "16px", padding: 0, lineHeight: 1 }}
-          onMouseEnter={e => e.target.style.color = "#c0504d"} onMouseLeave={e => e.target.style.color = "#444"}>×</button>
+        {onSaveToLibrary && <button onClick={e => { e.stopPropagation(); onSaveToLibrary(); e.target.textContent = "✓"; setTimeout(() => { if(e.target) e.target.textContent = "📚"; }, 1500); }} style={{ background: "none", border: "none", color: "#555", cursor: "pointer", fontSize: "11px", padding: "0 4px", lineHeight: 1, whiteSpace: "nowrap" }} title="Save to library">📚</button>}
+        <div style={{ display: "flex", gap: "4px", justifyContent: "flex-end" }}>
+          <button onClick={e => { e.stopPropagation(); onDelete(); }} style={{ background: "none", border: "1px solid #3a3a3a", borderRadius: "5px", color: "#555", cursor: "pointer", fontSize: "12px", padding: "2px 7px", lineHeight: 1 }}
+            onMouseEnter={e => { e.target.style.color = "#c0504d"; e.target.style.borderColor = "#c0504d"; }}
+            onMouseLeave={e => { e.target.style.color = "#555"; e.target.style.borderColor = "#3a3a3a"; }}>✕</button>
+        </div>
       </div>
 
       {isEditing && (
@@ -1313,11 +1316,9 @@ export default function App() {
                 showPricing={showPricing}
                 showRep={showRep}
                 onSaveToLibrary={() => {
-                  const f = fixtures.find(x => x.id === fixture.id);
-                  if (!f) return;
-                  const entry = { ...f, id: Date.now(), libraryId: Date.now() };
+                  const entry = { ...fixture, libraryId: fixture.id + "_" + Date.now() };
                   setLibrary(prev => {
-                    const already = prev.find(l => l.name === f.name && l.modelNumber === f.modelNumber);
+                    const already = prev.find(l => l.name === fixture.name && l.modelNumber === fixture.modelNumber);
                     if (already) return prev.map(l => l.libraryId === already.libraryId ? entry : l);
                     return [...prev, entry];
                   });
