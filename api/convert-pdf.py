@@ -3,16 +3,30 @@ import json
 import base64
 import io
 import traceback
+import sys
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
-        content_length = int(self.headers.get('Content-Length', 0))
-        body = self.rfile.read(content_length)
+        try:
+            content_length = int(self.headers.get('Content-Length', 0))
+            # Read in chunks to handle large PDFs
+            body = b''
+            remaining = content_length
+            while remaining > 0:
+                chunk = self.rfile.read(min(65536, remaining))
+                if not chunk:
+                    break
+                body += chunk
+                remaining -= len(chunk)
+        except Exception as e:
+            self._respond(500, {'error': f'Failed to read request body: {str(e)}'})
+            return
 
         try:
             data = json.loads(body)
             pdf_base64 = data.get('base64', '')
             logo_base64 = data.get('logoBase64', '')
+            highlight_terms = data.get('highlightTerms', [])
 
             if not pdf_base64:
                 self._respond(400, {'error': 'Missing PDF data'})
@@ -20,49 +34,65 @@ class handler(BaseHTTPRequestHandler):
 
             pdf_bytes = base64.b64decode(pdf_base64)
 
-            # Try pdf2image first, fall back to pypdf+reportlab if no poppler
-            pages_pil = None
-            try:
-                from pdf2image import convert_from_bytes
-                pages_pil = convert_from_bytes(pdf_bytes, dpi=150)
-            except Exception as e1:
-                # Try pymupdf (fitz) as fallback - no poppler needed
-                try:
-                    import fitz
-                    doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-                    from PIL import Image
-                    pages_pil = []
-                    for page in doc:
-                        mat = fitz.Matrix(150/72, 150/72)
-                        pix = page.get_pixmap(matrix=mat)
-                        img = Image.open(io.BytesIO(pix.tobytes("png")))
-                        pages_pil.append(img)
-                except Exception as e2:
-                    self._respond(500, {
-                        'error': f'pdf2image failed: {str(e1)} | pymupdf failed: {str(e2)}'
-                    })
-                    return
-
             from PIL import Image, ImageDraw
+            import fitz
+
+            doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
             MARGIN = 80
             LOGO_H = 50
             BORDER_H = 3
             BORDER_COLOR = (204, 0, 0)
+            HIGHLIGHT_COLOR = (255, 235, 0, 160)
 
             logo = None
             if logo_base64:
-                logo_data = logo_base64.split(',')[1] if ',' in logo_base64 else logo_base64
-                logo = Image.open(io.BytesIO(base64.b64decode(logo_data))).convert("RGBA")
+                try:
+                    logo_data = logo_base64.split(',')[1] if ',' in logo_base64 else logo_base64
+                    logo = Image.open(io.BytesIO(base64.b64decode(logo_data))).convert("RGBA")
+                except Exception as e:
+                    print(f"Logo load failed: {e}", file=sys.stderr)
 
             results = []
-            for i, page in enumerate(pages_pil):
-                page = page.convert("RGBA")
-                W, H = page.size
+            scale = 150 / 72
+
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+
+                # Find highlight positions
+                highlight_rects = []
+                for term in highlight_terms:
+                    if not term or len(term.strip()) < 3:
+                        continue
+                    for line in term.split('\n'):
+                        line = line.strip()
+                        if len(line) < 3:
+                            continue
+                        for search in [line] + ([line.split('-')[0]] if '-' in line else []):
+                            for rect in page.search_for(search):
+                                highlight_rects.append(rect)
+
+                mat = fitz.Matrix(scale, scale)
+                pix = page.get_pixmap(matrix=mat)
+                img = Image.open(io.BytesIO(pix.tobytes("png"))).convert("RGBA")
+                W, H = img.size
+
+                if highlight_rects:
+                    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+                    draw = ImageDraw.Draw(overlay)
+                    for rect in highlight_rects:
+                        x0 = int(rect.x0 * scale) - 2
+                        y0 = int(rect.y0 * scale) - 2
+                        x1 = int(rect.x1 * scale) + 2
+                        y1 = int(rect.y1 * scale) + 2
+                        draw.rectangle([x0, y0, x1, y1], fill=HIGHLIGHT_COLOR)
+                    img = Image.alpha_composite(img, overlay)
+
                 new_img = Image.new("RGBA", (W, H + MARGIN), (255, 255, 255, 255))
-                draw = ImageDraw.Draw(new_img)
-                draw.rectangle([0, 0, W, MARGIN], fill=(255, 255, 255, 255))
-                draw.rectangle([0, MARGIN - BORDER_H, W, MARGIN], fill=(*BORDER_COLOR, 255))
+                draw2 = ImageDraw.Draw(new_img)
+                draw2.rectangle([0, 0, W, MARGIN], fill=(255, 255, 255, 255))
+                draw2.rectangle([0, MARGIN - BORDER_H, W, MARGIN], fill=(*BORDER_COLOR, 255))
+
                 if logo:
                     ratio = logo.width / logo.height
                     logo_w = int(LOGO_H * ratio)
@@ -70,18 +100,21 @@ class handler(BaseHTTPRequestHandler):
                     logo_y = (MARGIN - BORDER_H - LOGO_H) // 2
                     new_img.paste(logo_resized, (24, logo_y), logo_resized)
                 else:
-                    draw.rectangle([0, 0, 6, MARGIN - BORDER_H], fill=(*BORDER_COLOR, 255))
-                new_img.paste(page, (0, MARGIN))
+                    draw2.rectangle([0, 0, 6, MARGIN - BORDER_H], fill=(*BORDER_COLOR, 255))
+
+                new_img.paste(img, (0, MARGIN), img)
                 final = new_img.convert("RGB")
                 buf = io.BytesIO()
                 final.save(buf, format="PNG", optimize=True)
                 b64 = base64.b64encode(buf.getvalue()).decode()
-                results.append({"page": i + 1, "dataUrl": f"data:image/png;base64,{b64}"})
+                results.append({"page": page_num + 1, "dataUrl": f"data:image/png;base64,{b64}"})
 
             self._respond(200, {'pages': results})
 
         except Exception as e:
-            self._respond(500, {'error': str(e), 'trace': traceback.format_exc()})
+            tb = traceback.format_exc()
+            print(f"Error: {e}\n{tb}", file=sys.stderr)
+            self._respond(500, {'error': str(e), 'trace': tb})
 
     def do_OPTIONS(self):
         self._respond(200, {})
