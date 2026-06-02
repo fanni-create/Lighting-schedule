@@ -801,12 +801,12 @@ export default function App() {
   }, [fixtures, search]);
 
   const grouped = useMemo(() => {
-    const g = {}; filtered.forEach(f => { const k = f.manufacturer || "No Manufacturer"; if (!g[k]) g[k] = []; g[k].push(f); });
+    const g = {}; filtered.forEach(f => { const k = f.manufacturer || "FIXTURE SCHEDULE"; if (!g[k]) g[k] = []; g[k].push(f); });
     return Object.entries(g).sort(([a],[b]) => a.localeCompare(b));
   }, [filtered]);
 
   const groupedAll = useMemo(() => {
-    const g = {}; fixtures.forEach(f => { const k = f.manufacturer || "No Manufacturer"; if (!g[k]) g[k] = []; g[k].push(f); });
+    const g = {}; fixtures.forEach(f => { const k = f.manufacturer || "FIXTURE SCHEDULE"; if (!g[k]) g[k] = []; g[k].push(f); });
     return Object.entries(g).sort(([a],[b]) => a.localeCompare(b));
   }, [fixtures]);
 
