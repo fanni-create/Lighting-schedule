@@ -503,6 +503,7 @@ function exportToXLSX(fixtures, projectName) {
 }
 
 function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true, showRep = true, groupBy = "manufacturer", includeCutsheets = true) {
+  try {
   const fmtMoney = (n) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // eslint-disable-next-line no-unused-vars
   const totalNet = fixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
@@ -819,6 +820,10 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
     blob: new Blob([html], { type: "text/html;charset=utf-8" }),
     name: "lighting-cutsheet-package-" + dateStr + ".html",
   }];
+  } catch(err) {
+    console.error("exportScheduleBook error:", err.message, err.stack);
+    throw err;
+  }
 }
 
 // ─── Extract fixture type prefix from name (e.g. "L-2 Downlight" → "L-2", "F1 Panel" → "F1") ──
