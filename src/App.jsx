@@ -987,6 +987,24 @@ function loadFromStorage() {
   }
 }
 
+// ─── Image compression ────────────────────────────────────────────────────────
+function compressImage(dataUrl, maxSize = 400, quality = 0.7) {
+  return new Promise(resolve => {
+    if (!dataUrl || !dataUrl.startsWith("data:image")) { resolve(dataUrl); return; }
+    const img = new window.Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 // ─── Remote Sync ──────────────────────────────────────────────────────────────
 async function loadFromRemote() {
   try {
@@ -1000,24 +1018,34 @@ async function loadFromRemote() {
 
 async function saveToRemote(data) {
   try {
-    // Strip large binary data before sending
-    const stripped = {
+    // Compress fixture images before syncing
+    const compressFixtures = async (fixtures) => Promise.all((fixtures || []).map(async f => ({
+      ...f,
+      image: f.image ? await compressImage(f.image, 400, 0.7) : null,
+      cutsheetPageImages: null, // too large to sync
+    })));
+
+    const projects = await Promise.all((data.projects || []).map(async p => ({
+      ...p, fixtures: await compressFixtures(p.fixtures)
+    })));
+
+    const library = await Promise.all((data.library || []).map(async f => ({
+      ...f,
+      image: f.image ? await compressImage(f.image, 400, 0.7) : null,
+      cutsheetPageImages: null,
+    })));
+
+    const payload = {
       ...data,
-      projects: (data.projects || []).map(p => ({
-        ...p,
-        fixtures: (p.fixtures || []).map(f => ({
-          ...f,
-          image: null,
-          cutsheetPageImages: null,
-        }))
-      })),
-      library: (data.library || []).map(f => ({ ...f, image: null, cutsheetPageImages: null })),
-      brand: { ...(data.brand || {}), logo: null },
+      projects,
+      library,
+      brand: { ...(data.brand || {}), logo: data.brand?.logo ? await compressImage(data.brand.logo, 300, 0.8) : null },
     };
+
     await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(stripped),
+      body: JSON.stringify(payload),
     });
   } catch(e) {
     console.warn("Remote sync failed:", e);
