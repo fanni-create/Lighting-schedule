@@ -1,7 +1,3 @@
-const { put, list } = require("@vercel/blob");
-
-const FILENAME = "lighting-schedule-data.json";
-
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -10,35 +6,57 @@ module.exports = async (req, res) => {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
-  if (!token) return res.status(500).json({ error: "BLOB_READ_WRITE_TOKEN not set" });
+  const storeId = process.env.BLOB_STORE_ID;
+
+  if (!token) return res.status(500).json({ error: "No token", env: Object.keys(process.env).filter(k => k.includes("BLOB")) });
 
   try {
     if (req.method === "GET") {
-      // List blobs to find our file
-      const { blobs } = await list({ token, prefix: FILENAME });
-      if (!blobs || blobs.length === 0) return res.status(200).json({});
+      // List blobs using Vercel Blob API directly
+      const listRes = await fetch(`https://blob.vercel-storage.com?prefix=lighting-schedule-data`, {
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        }
+      });
+      const listData = await listRes.json();
       
-      // Fetch the most recent blob
-      const blob = blobs[0];
-      const response = await fetch(blob.url);
-      if (!response.ok) return res.status(200).json({});
-      const data = await response.json();
+      if (!listData.blobs || listData.blobs.length === 0) {
+        return res.status(200).json({});
+      }
+
+      // Fetch the actual data
+      const dataRes = await fetch(listData.blobs[0].url);
+      if (!dataRes.ok) return res.status(200).json({});
+      const data = await dataRes.json();
       return res.status(200).json(data);
     }
 
     if (req.method === "POST") {
-      const data = req.body;
-      const blob = await put(FILENAME, JSON.stringify(data), {
-        access: "public",
-        token,
-        addRandomSuffix: false,
-        allowOverwrite: true,
+      const data = JSON.stringify(req.body);
+      
+      // Upload to Vercel Blob
+      const uploadRes = await fetch(`https://blob.vercel-storage.com/lighting-schedule-data.json`, {
+        method: "PUT",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "x-content-type": "application/json",
+          "x-add-random-suffix": "0",
+        },
+        body: data,
       });
-      return res.status(200).json({ ok: true, url: blob.url });
+
+      if (!uploadRes.ok) {
+        const err = await uploadRes.text();
+        return res.status(500).json({ error: err });
+      }
+
+      const result = await uploadRes.json();
+      return res.status(200).json({ ok: true, url: result.url });
     }
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch(e) {
-    return res.status(500).json({ error: e.message, stack: e.stack });
+    return res.status(500).json({ error: e.message });
   }
 };
