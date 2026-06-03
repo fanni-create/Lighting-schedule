@@ -10,7 +10,7 @@ document.head.appendChild(fontLink);
 const DEFAULT_MANUFACTURERS = ["Acuity Brands", "Cree Lighting", "Eaton", "GE Current", "Hubbell", "Lithonia", "Philips", "RAB Lighting", "Signify"];
 const DEFAULT_REPS = ["Alpha Lighting", "Brightside Rep Group", "Coastal Lighting", "Delta Sales", "East Coast Reps", "Frontier Lighting", "Gulf States", "Heritage Reps"];
 const FIXTURE_TYPES = ["Canopy", "Downlight", "Exit Sign", "Flood Light", "High Bay", "Panel", "Strip Light", "Street Light", "Troffer", "Wall Pack"];
-const COLOR_TEMPS = ["2700K", "3000K", "3500K", "4000K", "5000K", "6500K"];
+const COLOR_TEMPS = ["2700K", "3000K", "3500K", "4000K", "5000K", "6500K", "Tunable White", "Dim to Warm", "RGB", "RGBW", "RGBA"];
 const CRI_OPTIONS = ["70 CRI", "80 CRI", "90 CRI", "95+ CRI"];
 
 const kelvinToHex = (k) => {
@@ -260,7 +260,7 @@ function FixtureRow({ fixture, onUpdate, onDelete, isEditing, onEditToggle, manu
             <ManagedSelect label="Manufacturer" value={local.manufacturer} onChange={v => set("manufacturer", v)} options={manufacturers} onAddOption={onAddManufacturer} />
             <ManagedSelect label="Rep" value={local.rep} onChange={v => set("rep", v)} options={reps} onAddOption={onAddRep} />
             <Field label="Wattage (W)" value={local.wattage} onChange={v => set("wattage", v)} placeholder="e.g. 40" type="number" />
-            <SimpleSelect label="Color Temp" value={local.colorTemp} onChange={v => set("colorTemp", v)} options={COLOR_TEMPS} />
+            <ManagedSelect label="Color Temp" value={local.colorTemp} onChange={v => set("colorTemp", v)} options={COLOR_TEMPS} onAddOption={(t) => COLOR_TEMPS.push(t)} />
             <SimpleSelect label="CRI" value={local.cri} onChange={v => set("cri", v)} options={CRI_OPTIONS} />
             <Field label="Lumens" value={local.lumens} onChange={v => set("lumens", v)} placeholder="e.g. 4500" type="number" />
             <Field label="Voltage" value={local.voltage} onChange={v => set("voltage", v)} placeholder="e.g. 120-277V" />
@@ -1107,26 +1107,29 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Load from remote on first mount
+  const [remoteLoaded, setRemoteLoaded] = useState(false);
+
+  // Load from remote on first mount - takes priority over localStorage
   useEffect(() => {
     loadFromRemote().then(remote => {
-      if (!remote) return;
-      if (remote.projects?.length) {
-        setProjects(remote.projects);
+      if (remote && (remote.projects?.length || remote.manufacturers?.length)) {
+        if (remote.projects?.length) setProjects(remote.projects);
         if (remote.activeProjectId) setActiveProjectId(remote.activeProjectId);
+        if (remote.manufacturers?.length) setManufacturers(remote.manufacturers);
+        if (remote.reps?.length) setReps(remote.reps);
+        if (remote.fixtureTypes?.length) setFixtureTypes([...remote.fixtureTypes].sort((a,b) => a.localeCompare(b)));
+        if (remote.library?.length) setLibrary(remote.library);
       }
-      if (remote.manufacturers?.length) setManufacturers(remote.manufacturers);
-      if (remote.reps?.length) setReps(remote.reps);
-      if (remote.fixtureTypes?.length) setFixtureTypes(remote.fixtureTypes);
-      if (remote.library?.length) setLibrary(remote.library);
+      setRemoteLoaded(true);
     });
   }, []);
 
-  // Auto-save to localStorage and remote whenever key state changes
+  // Auto-save to localStorage and remote - only after remote has loaded
   useEffect(() => {
+    if (!remoteLoaded) return;
     saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library });
     saveToRemote({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library });
-  }, [projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library]);
+  }, [projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library, remoteLoaded]);
 
   // Active project helpers
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
