@@ -7,9 +7,8 @@
       "memory": 1024
     }
   },
-  "routes": [
-    { "src": "/api/convert-pdf", "dest": "/api/convert-pdf.py" },
-    { "src": "/api/sync", "dest": "/api/sync.py" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "rewrites": [
+    { "source": "/api/(.*)", "destination": "/api/$1" },
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
