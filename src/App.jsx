@@ -725,11 +725,11 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   .header-right{text-align:right;}
   .fixture-count{font-size:12px;color:#888;font-weight:600;}
   /* ── TOC ── */
-  .general-notes{margin:20px 0 28px;padding:20px 24px;background:#fafafa;border-left:4px solid #cc0000;border-radius:0 6px 6px 0;}
-  .notes-title{font-size:10px;font-weight:800;letter-spacing:0.18em;color:#cc0000;text-transform:uppercase;margin-bottom:14px;font-family:'Montserrat',Arial,sans-serif;}
-  .notes-list{margin:0;padding-left:20px;}
-  .notes-list li{font-size:10px;color:#333;line-height:1.8;padding:2px 0;font-weight:500;letter-spacing:0.01em;}
-  .notes-footer{margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;font-size:8.5px;color:#cc0000;font-weight:700;letter-spacing:0.02em;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .general-notes{margin:20px 0 28px;padding:14px 18px;background:#fafafa;border-left:4px solid #cc0000;border-radius:0 6px 6px 0;}
+  .notes-title{font-size:9px;font-weight:800;letter-spacing:0.18em;color:#cc0000;text-transform:uppercase;margin-bottom:8px;font-family:'Montserrat',Arial,sans-serif;}
+  .notes-list{margin:0;padding-left:16px;}
+  .notes-list li{font-size:9px;color:#333;line-height:1.5;padding:1px 0;font-weight:500;letter-spacing:0.01em;}
+  .notes-footer{margin-top:10px;padding-top:8px;border-top:1px solid #e0e0e0;font-size:8px;color:#cc0000;font-weight:700;letter-spacing:0.02em;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   /* ── Section label ── */
   .section-label{font-size:10px;font-weight:700;letter-spacing:0.12em;color:#cc0000;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin:28px 0 10px;display:flex;align-items:center;gap:10px;}
   .section-label::after{content:"";flex:1;height:2px;background:#cc0000;opacity:0.15;}
