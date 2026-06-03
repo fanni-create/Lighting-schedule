@@ -926,7 +926,16 @@ function saveToStorage(data) {
     try {
       localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(library || []));
     } catch(e) {
-      localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(libraryStripped));
+      try {
+        localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(libraryStripped));
+      } catch(e2) {
+        console.warn("Library save failed - storage full");
+        // Clear old image cache and retry
+        localStorage.removeItem(STORAGE_KEY + "_images");
+        try {
+          localStorage.setItem(STORAGE_KEY + "_library", JSON.stringify(libraryStripped));
+        } catch(e3) {}
+      }
     }
 
     // Save fixture images separately per fixture
@@ -1010,7 +1019,9 @@ async function loadFromRemote() {
   try {
     const res = await fetch("/api/sync");
     if (!res.ok) return null;
-    return await res.json();
+    const data = await res.json();
+    if (data.error) return null;
+    return data;
   } catch(e) {
     return null;
   }
