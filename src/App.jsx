@@ -556,7 +556,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
         <td style="padding:10px 8px;vertical-align:middle;">${imgCell}</td>
         <td style="padding:10px 8px;vertical-align:top;">
           <div style="font-weight:700;font-size:13px;color:#111;">${f.name || "Untitled"}${f.cutsheetPageImages ? ' <span class="cs-badge">📄 cutsheet</span>' : ""}</div>
-          <div style="font-size:11px;color:#888;margin-top:2px;">${f.manufacturer || ""}</div>
+          ${f.manufacturer ? `<div style="font-size:11px;color:#444;font-weight:700;margin-top:2px;">${f.manufacturer}</div>` : ""}
           ${modelLines.map(l => `<div style="font-size:11px;color:#666;font-family:'Courier New',monospace;line-height:1.6;">${l}</div>`).join("")}
           <div style="margin-top:4px;">${tags}</div>
           ${f.notes ? `<div style="margin-top:4px;font-size:11px;color:#999;font-style:italic;">${f.notes}</div>` : ""}
@@ -599,7 +599,8 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
         <td style="padding:10px 8px;vertical-align:middle;">${imgCell}</td>
         <td style="padding:10px 8px;vertical-align:top;">
           <div style="font-weight:700;font-size:13px;color:#111;">${f.name || "<em>Untitled</em>"}${csBadge}</div>
-          ${modelLines.length ? `<div style="font-size:11px;color:#666;margin-top:3px;font-family:monospace;line-height:1.7;">${modelLines.join("<br/>")}</div>` : ""}
+          ${f.manufacturer ? `<div style="font-size:11px;color:#444;font-weight:700;margin-top:2px;">${f.manufacturer}</div>` : ""}
+          ${modelLines.length ? `<div style="font-size:11px;color:#666;margin-top:2px;font-family:monospace;line-height:1.7;">${modelLines.join("<br/>")}</div>` : ""}
           <div style="margin-top:5px;">${tags}</div>
           ${f.notes ? `<div style="margin-top:5px;font-size:11px;color:#888;font-style:italic;">${f.notes}</div>` : ""}
         </td>
@@ -801,7 +802,6 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   ${coverPage}
   ${toc}
 
-  <div class="section-label">${groupBy === "rep" ? "Fixture Schedule by Rep" : "Lighting Cutsheet Package"}</div>
   ${groupBy === "flat" ? flatSpecSection : (Array.isArray(specSections) ? specSections.join("") : String(specSections || ""))}
   ${pageFooter}
 
