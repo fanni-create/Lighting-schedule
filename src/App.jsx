@@ -1042,7 +1042,7 @@ export default function App() {
   // Auto-save whenever key state changes
   useEffect(() => {
     saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library });
-  }, [projects, activeProjectId, manufacturers, reps, brand]);
+  }, [projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library]);
 
   // Active project helpers
   const activeProject = projects.find(p => p.id === activeProjectId) || projects[0];
@@ -1412,9 +1412,9 @@ export default function App() {
                 showPricing={showPricing}
                 showRep={showRep}
                 onSaveToLibrary={() => {
-                  const entry = { ...fixture, libraryId: fixture.id + "_" + Date.now() };
+                  const entry = { ...f, libraryId: f.id + "_" + Date.now() };
                   setLibrary(prev => {
-                    const already = prev.find(l => l.name === fixture.name && l.modelNumber === fixture.modelNumber);
+                    const already = prev.find(l => l.name === f.name && l.modelNumber === f.modelNumber);
                     if (already) return prev.map(l => l.libraryId === already.libraryId ? entry : l);
                     return [...prev, entry];
                   });
