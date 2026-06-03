@@ -504,6 +504,7 @@ function exportToXLSX(fixtures, projectName) {
 
 function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing = true, showRep = true, groupBy = "manufacturer", includeCutsheets = true) {
   try {
+  console.log("exportScheduleBook called, grouped type:", typeof grouped, Array.isArray(grouped), grouped?.length);
   const fmtMoney = (n) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   // eslint-disable-next-line no-unused-vars
   const totalNet = fixtures.reduce((s, f) => s + (parseFloat(f.distributorNet || 0) * parseInt(f.qty || 1) || 0), 0);
@@ -801,10 +802,10 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   ${toc}
 
   <div class="section-label">${groupBy === "rep" ? "Fixture Schedule by Rep" : "Lighting Cutsheet Package"}</div>
-  ${groupBy === "flat" ? flatSpecSection : specSections.join("")}
+  ${groupBy === "flat" ? flatSpecSection : (Array.isArray(specSections) ? specSections.join("") : String(specSections || ""))}
   ${pageFooter}
 
-  ${includeCutsheets ? cutsheetPages.join("") : ""}
+  ${includeCutsheets ? (Array.isArray(cutsheetPages) ? cutsheetPages.join("") : String(cutsheetPages || "")) : ""}
 
   <div class="no-print" class="no-print">
     <button onclick="window.print()" style="background:#cc0000;color:#fff;border:none;border-radius:8px;padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Montserrat',Arial,sans-serif;">🖨 Print / Save as PDF</button>
