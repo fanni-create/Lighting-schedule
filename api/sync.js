@@ -1,4 +1,6 @@
-const { put, get } = require("@vercel/blob");
+const { put, list } = require("@vercel/blob");
+
+const FILENAME = "lighting-schedule-data.json";
 
 module.exports = async (req, res) => {
   res.setHeader("Access-Control-Allow-Origin", "*");
@@ -12,22 +14,21 @@ module.exports = async (req, res) => {
 
   try {
     if (req.method === "GET") {
-      try {
-        const response = await fetch(
-          "https://blob.vercel-storage.com/lighting-schedule-data.json",
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (!response.ok) return res.status(200).json({});
-        const data = await response.json();
-        return res.status(200).json(data);
-      } catch(e) {
-        return res.status(200).json({});
-      }
+      // List blobs to find our file
+      const { blobs } = await list({ token, prefix: FILENAME });
+      if (!blobs || blobs.length === 0) return res.status(200).json({});
+      
+      // Fetch the most recent blob
+      const blob = blobs[0];
+      const response = await fetch(blob.url);
+      if (!response.ok) return res.status(200).json({});
+      const data = await response.json();
+      return res.status(200).json(data);
     }
 
     if (req.method === "POST") {
       const data = req.body;
-      const blob = await put("lighting-schedule-data.json", JSON.stringify(data), {
+      const blob = await put(FILENAME, JSON.stringify(data), {
         access: "public",
         token,
         addRandomSuffix: false,
@@ -38,6 +39,6 @@ module.exports = async (req, res) => {
 
     return res.status(405).json({ error: "Method not allowed" });
   } catch(e) {
-    return res.status(500).json({ error: e.message });
+    return res.status(500).json({ error: e.message, stack: e.stack });
   }
 };
