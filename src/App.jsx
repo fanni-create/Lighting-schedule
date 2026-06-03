@@ -9,7 +9,7 @@ document.head.appendChild(fontLink);
 
 const DEFAULT_MANUFACTURERS = ["Acuity Brands", "Cree Lighting", "Eaton", "GE Current", "Hubbell", "Lithonia", "Philips", "RAB Lighting", "Signify"];
 const DEFAULT_REPS = ["Alpha Lighting", "Brightside Rep Group", "Coastal Lighting", "Delta Sales", "East Coast Reps", "Frontier Lighting", "Gulf States", "Heritage Reps"];
-const FIXTURE_TYPES = ["Troffer", "High Bay", "Wall Pack", "Street Light", "Downlight", "Strip Light", "Panel", "Flood Light", "Canopy", "Exit Sign"];
+const FIXTURE_TYPES = ["Canopy", "Downlight", "Exit Sign", "Flood Light", "High Bay", "Panel", "Strip Light", "Street Light", "Troffer", "Wall Pack"];
 const COLOR_TEMPS = ["2700K", "3000K", "3500K", "4000K", "5000K", "6500K"];
 const CRI_OPTIONS = ["70 CRI", "80 CRI", "90 CRI", "95+ CRI"];
 
@@ -1004,7 +1004,10 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [manufacturers, setManufacturers] = useState(() => stored?.manufacturers || [...DEFAULT_MANUFACTURERS]);
   const [reps, setReps] = useState(() => stored?.reps || [...DEFAULT_REPS]);
-  const [fixtureTypes, setFixtureTypes] = useState(() => stored?.fixtureTypes || [...FIXTURE_TYPES]);
+  const [fixtureTypes, setFixtureTypes] = useState(() => {
+    const types = stored?.fixtureTypes || [...FIXTURE_TYPES];
+    return [...types].sort((a, b) => a.localeCompare(b));
+  });
   const [brand, setBrand] = useState(() => {
     const saved = stored?.brand;
     if (saved?.logo) return saved;
