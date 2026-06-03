@@ -987,6 +987,43 @@ function loadFromStorage() {
   }
 }
 
+// ─── Remote Sync ──────────────────────────────────────────────────────────────
+async function loadFromRemote() {
+  try {
+    const res = await fetch("/api/sync");
+    if (!res.ok) return null;
+    return await res.json();
+  } catch(e) {
+    return null;
+  }
+}
+
+async function saveToRemote(data) {
+  try {
+    // Strip large binary data before sending
+    const stripped = {
+      ...data,
+      projects: (data.projects || []).map(p => ({
+        ...p,
+        fixtures: (p.fixtures || []).map(f => ({
+          ...f,
+          image: null,
+          cutsheetPageImages: null,
+        }))
+      })),
+      library: (data.library || []).map(f => ({ ...f, image: null, cutsheetPageImages: null })),
+      brand: { ...(data.brand || {}), logo: null },
+    };
+    await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(stripped),
+    });
+  } catch(e) {
+    console.warn("Remote sync failed:", e);
+  }
+}
+
 // ─── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
   const stored = loadFromStorage();
@@ -1042,9 +1079,25 @@ export default function App() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  // Auto-save whenever key state changes
+  // Load from remote on first mount
+  useEffect(() => {
+    loadFromRemote().then(remote => {
+      if (!remote) return;
+      if (remote.projects?.length) {
+        setProjects(remote.projects);
+        if (remote.activeProjectId) setActiveProjectId(remote.activeProjectId);
+      }
+      if (remote.manufacturers?.length) setManufacturers(remote.manufacturers);
+      if (remote.reps?.length) setReps(remote.reps);
+      if (remote.fixtureTypes?.length) setFixtureTypes(remote.fixtureTypes);
+      if (remote.library?.length) setLibrary(remote.library);
+    });
+  }, []);
+
+  // Auto-save to localStorage and remote whenever key state changes
   useEffect(() => {
     saveToStorage({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library });
+    saveToRemote({ projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library });
   }, [projects, activeProjectId, manufacturers, reps, brand, fixtureTypes, library]);
 
   // Active project helpers
