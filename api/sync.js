@@ -8,12 +8,18 @@ module.exports = async (req, res) => {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const token = process.env.BLOB_READ_WRITE_TOKEN;
+  const storeId = process.env.BLOB_STORE_ID;
   if (!token) return res.status(500).json({ error: "BLOB_READ_WRITE_TOKEN not set" });
+
+  const blobHeaders = {
+    "Authorization": `Bearer ${token}`,
+    ...(storeId ? { "x-vercel-blob-store-id": storeId } : {})
+  };
 
   try {
     if (req.method === "GET") {
       const listRes = await fetch(`https://blob.vercel-storage.com?prefix=${FILENAME}`, {
-        headers: { "Authorization": `Bearer ${token}` }
+        headers: blobHeaders
       });
       const listData = await listRes.json();
       if (!listData.blobs || listData.blobs.length === 0) return res.status(200).json({});
@@ -30,7 +36,7 @@ module.exports = async (req, res) => {
       let existing = {};
       try {
         const listRes = await fetch(`https://blob.vercel-storage.com?prefix=${FILENAME}`, {
-          headers: { "Authorization": `Bearer ${token}` }
+          headers: blobHeaders
         });
         const listData = await listRes.json();
         if (listData.blobs && listData.blobs.length > 0) {
@@ -78,10 +84,10 @@ module.exports = async (req, res) => {
       const uploadRes = await fetch(`https://blob.vercel-storage.com/${FILENAME}`, {
         method: "PUT",
         headers: {
-          "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json",
           "x-content-type": "application/json",
           "x-add-random-suffix": "0",
+          ...blobHeaders,
         },
         body: JSON.stringify(merged),
       });
