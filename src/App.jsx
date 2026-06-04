@@ -707,6 +707,12 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
     ${pagesHtml}`;
   }).join("");
 
+  const grandTotal = fixtures.reduce((s, f) => s + (parseFloat(f.distributorNet||0) * parseInt(f.qty||1) || 0), 0);
+  const grandTotalHtml = showPricing && grandTotal > 0 ? `
+    <div class="grand-total">
+      <span class="grand-total-label">PROJECT TOTAL</span>
+      <span class="grand-total-value">${fmtMoney(grandTotal)}</span>
+    </div>` : "";
   const pageFooter = `<div class="page-footer"><span>${brand.name || "Lighting Cutsheet Package"}</span><span>${today}</span></div>`;
 
   const html = `<!DOCTYPE html>
@@ -736,6 +742,9 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   .section-label::after{content:"";flex:1;height:2px;background:#cc0000;opacity:0.15;}
   /* ── Manufacturer groups ── */
   .mfr-section{margin-bottom:28px;}
+  .grand-total{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:#1a1a1a;border-radius:6px;margin:24px 0 8px;border:1px solid #2a4a2a;}
+  .grand-total-label{font-family:'Montserrat',Arial,sans-serif;font-size:10px;font-weight:800;letter-spacing:0.14em;color:#6fba6f;text-transform:uppercase;}
+  .grand-total-value{font-family:'Montserrat',Arial,sans-serif;font-size:20px;font-weight:900;color:#6fba6f;letter-spacing:-0.01em;}
   .rep-header{padding:16px 0 12px;border-bottom:3px solid #cc0000;margin-bottom:20px;display:flex;align-items:baseline;gap:10px;}
   .rep-label{font-size:10px;font-weight:800;letter-spacing:0.14em;color:#cc0000;text-transform:uppercase;font-family:'Montserrat',Arial,sans-serif;}
   .rep-name{font-size:20px;font-weight:800;color:#111;font-family:'Montserrat',Arial,sans-serif;letter-spacing:-0.01em;}
@@ -803,6 +812,7 @@ function exportScheduleBook(fixtures, grouped, brand, projectName, showPricing =
   ${toc}
 
   ${groupBy === "flat" ? flatSpecSection : (Array.isArray(specSections) ? specSections.join("") : String(specSections || ""))}
+  ${grandTotalHtml}
   ${pageFooter}
 
   ${includeCutsheets ? (Array.isArray(cutsheetPages) ? cutsheetPages.join("") : String(cutsheetPages || "")) : ""}
@@ -1253,6 +1263,14 @@ export default function App() {
             style={{ background: "#1a1a1a", color: showPricing ? "#6fba6f" : "#555", border: `1px solid ${showPricing ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
             {showPricing ? "$ Hide Pricing" : "$ Show Pricing"}
           </button>
+          {showPricing && fixtures.length > 0 && (
+            <div style={{ background: "#1a1a1a", border: "1px solid #2a4a2a", borderRadius: "7px", padding: "7px 12px", display: "flex", flexDirection: "column", alignItems: "flex-end", minWidth: "120px" }}>
+              <span style={{ fontSize: "9px", color: "#555", fontFamily: "monospace", letterSpacing: "0.08em" }}>PROJECT TOTAL</span>
+              <span style={{ fontSize: "14px", fontWeight: "800", color: "#6fba6f", letterSpacing: "-0.01em" }}>
+                ${totals.net.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+          )}
           <button onClick={() => setShowRep(r => !r)}
             style={{ background: "#1a1a1a", color: showRep ? "#6fba6f" : "#555", border: `1px solid ${showRep ? "#2a4a2a" : "#2a2a2a"}`, borderRadius: "7px", padding: "7px 12px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
             {showRep ? "👤 Hide Rep" : "👤 Show Rep"}
