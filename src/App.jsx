@@ -847,7 +847,7 @@ function extractTypeCode(name) {
 
 // ─── Project Tab Bar ──────────────────────────────────────────────────────────
 let projIdCounter = 1;
-const newProject = (name = "New Project") => ({ id: projIdCounter++, name, fixtures: [], editingId: null });
+const newProject = (name = "New Project") => ({ id: projIdCounter++, name, fixtures: [], editingId: null, updatedAt: Date.now() });
 
 function ProjectTabs({ projects, activeId, onSelect, onAdd, onRename, onDelete }) {
   const [renamingId, setRenamingId] = useState(null);
